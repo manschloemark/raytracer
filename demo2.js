@@ -1,7 +1,3 @@
-// function sphereFactory(center, radius, color){
-//     const sphere = {center, radius, color};
-//     return sphere;
-// }
 
 // ======================================================================
 //  Low-level canvas access.
@@ -45,63 +41,77 @@ var DotProduct = function(v1, v2) {
   return v1[0]*v2[0] + v1[1]*v2[1] + v1[2]*v2[2];
 }
 
-var Add = function(v1, v2){
+
+// Length of a 3D vector.
+var Length = function(vec) {
+  return Math.sqrt(DotProduct(vec, vec));
+}
+
+
+// Computes k * vec.
+var Multiply = function(k, vec) {
+  return [k*vec[0], k*vec[1], k*vec[2]];
+}
+
+
+// Computes v1 + v2.
+var Add = function(v1, v2) {
   return [v1[0] + v2[0], v1[1] + v2[1], v1[2] + v2[2]];
 }
+
 
 // Computes v1 - v2.
 var Subtract = function(v1, v2) {
   return [v1[0] - v2[0], v1[1] - v2[1], v1[2] - v2[2]];
 }
 
-var Length = function(v) {
-  return Math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
+
+// Clamps a color to the canonical color range.
+var Clamp = function(vec) {
+  return [Math.min(255, Math.max(0, vec[0])),
+      Math.min(255, Math.max(0, vec[1])),
+      Math.min(255, Math.max(0, vec[2]))];
 }
 
-var ScalarProduct = function(v, s){
-  return [v[0] * s, v[1] * s, v[2] * s];
-}
-
-var ScalarDivide = function(v, s){
-  return [v[0] / s, v[1] / s, v[2] / s];
-}
-
-var BrightenColor = function(color, i){
- return [Math.min(Math.max(0, color[0] * i), 255), Math.min(Math.max(0, color[1] * i), 255), Math.min(Math.max(0, color[2] * i), 255)];
-}
 
 // ======================================================================
-//  A very basic raytracer.
+//  A raytracer with diffuse illumination.
 // ======================================================================
 
 // A Sphere.
-var Sphere = function(center, radius, color, specular) {
+var Sphere = function(center, radius, color) {
   this.center = center;
   this.radius = radius;
   this.color = color;
-  this.specular = specular;
 }
 
-var Light = function(type, intensity, position, direction) {
-  this.type = type;
+// A Light.
+var Light = function(ltype, intensity, position) {
+  this.ltype = ltype;
   this.intensity = intensity;
-  this.position = position ? position : undefined;
-  this.direction = direction ? direction : undefined;
+  this.position = position;
 }
+
+Light.AMBIENT = 0;
+Light.POINT = 1;
+Light.DIRECTIONAL = 2;
+
 
 // Scene setup.
 var viewport_size = 1;
 var projection_plane_z = 1;
 var camera_position = [0, 0, 0];
 var background_color = [255, 255, 255];
-var spheres = [new Sphere([0, -1, 3], 1, [255, 0, 0], 10),
-           new Sphere([2, 0, 12], 1, [0, 0, 255], 100),
-           new Sphere([-1, 0, 4], 1, [0, 255, 0], 2),
-           new Sphere([0, -5002, 0], 5001, [164, 164, 0], 444)];
+var spheres = [new Sphere([0, -1, 3], 1, [255, 0, 0]),
+           new Sphere([2, 0, 4], 1, [0, 0, 255]),
+           new Sphere([-2, 0, 4], 1, [0, 255, 0]),
+           new Sphere([0, -5001, 0], 5000, [255, 255, 0])];
 
-var lights = [new Light("ambient", 0.2),
-              new Light("point", 0.6, [0, 1, -2]),
-              new Light("directional", 0.6, null, [0, 10, 2])];
+var lights = [
+  new Light(Light.AMBIENT, 0.2),
+  new Light(Light.POINT, 0.6, [2, 1, 0]),
+  new Light(Light.DIRECTIONAL, 0.2, [1, 4, 4])
+];
 
 
 // Converts 2D canvas coordinates to 3D viewport coordinates.
@@ -131,34 +141,31 @@ var IntersectRaySphere = function(origin, direction, sphere) {
   return [t1, t2];
 }
 
-var ComputeLighting = function(P, N, V, s){
-  i = 0.0;
-  for(let index = 0; index < lights.length; index++){
-    light = lights[index];
-    if(light.type == "ambient"){
-      i += light.intensity;
+
+var ComputeLighting = function(point, normal) {
+  var intensity = 0;
+  var length_n = Length(normal);  // Should be 1.0, but just in case...
+
+  for (var i = 0; i < lights.length; i++) {
+    var light = lights[i];
+    if (light.ltype == Light.AMBIENT) {
+      intensity += light.intensity;
     } else {
-      let L;
-      if(light.type == "point"){
-        L = Subtract(light.position, P);
-      } else {
-        L = light.direction;
-      }
-      let n_dot_l = DotProduct(N, L);
-      if(n_dot_l > 0){
-        i += light.intensity * n_dot_l / (Length(N) + Length(L));
+      var vec_l;
+      if (light.ltype == Light.POINT) {
+    vec_l = Subtract(light.position, point);
+      } else {  // Light.DIRECTIONAL
+    vec_l = light.position;
       }
 
-      if(s != -1) {
-        let R = Subtract(ScalarProduct(N, n_dot_l * 2.0), L);
-        let r_dot_v = DotProduct(R, V);
-        if(r_dot_v > 0) {
-          i += light.intensity * Math.pow(r_dot_v / (Length(R) * Length(V)), s);
-        }
+      var n_dot_l = DotProduct(normal, vec_l);
+      if (n_dot_l > 0) {
+    intensity += light.intensity * n_dot_l / (length_n * Length(vec_l));
       }
     }
   }
-  return i;
+
+  return intensity;
 }
 
 
@@ -183,48 +190,25 @@ var TraceRay = function(origin, direction, min_t, max_t) {
     return background_color;
   }
 
-  let point = Add(origin, ScalarProduct(direction, closest_t));
-  let normal = Subtract(point, closest_sphere.center);
-  normal = ScalarDivide(normal, Length(normal));
-  let result = BrightenColor(closest_sphere.color, ComputeLighting(point, normal, ScalarProduct(direction, -1), closest_sphere.specular));
-  return result;
+  var point = Add(origin, Multiply(closest_t, direction));
+  var normal = Subtract(point, closest_sphere.center);
+  normal = Multiply(1.0 / Length(normal), normal);
+
+  return Multiply(ComputeLighting(point, normal), closest_sphere.color);
 }
+
 
 //
 // Main loop.
 //
-function Render(){
-  for (var x = -canvas.width/2; x < canvas.width/2; x++) {
-    for (var y = -canvas.height/2; y < canvas.height/2; y++) {
-      var direction = CanvasToViewport([x, y])
-      var color = TraceRay(camera_position, direction, 1, Infinity);
-      PutPixel(x, y, color);
-    }
+for (var x = -canvas.width/2; x < canvas.width/2; x++) {
+  for (var y = -canvas.height/2; y < canvas.height/2; y++) {
+    var direction = CanvasToViewport([x, y])
+    var color = TraceRay(camera_position, direction, 1, Infinity);
+    PutPixel(x, y, Clamp(color));
   }
 }
 
-function UpdateRender(){
-  Render();
-  UpdateCanvas();
-}
+UpdateCanvas();
 
-function handleKeyDown(event){
-  key = event.code;
-  if(key == "KeyW"){
-    ++camera_position[1];
-  }
-  if(key == "KeyA"){
-    --camera_position[0];
-  }
-  if(key == "KeyS"){
-    --camera_position[1];
-  }
-  if(key == "KeyD"){
-    ++camera_position[0];
-  }
-  UpdateRender();
-}
 
-document.addEventListener("keydown", handleKeyDown);
-
-UpdateRender();
