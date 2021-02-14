@@ -55,7 +55,7 @@ var Subtract = function(v1, v2) {
 }
 
 var Length = function(v) {
-  return Math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
+  return Math.sqrt(DotProduct(v, v));
 }
 
 var ScalarProduct = function(v, s){
@@ -86,11 +86,10 @@ var Sphere = function(center, radius, color, specular) {
   this.specular = specular;
 }
 
-var Light = function(type, intensity, position, direction) {
+var Light = function(type, intensity, position) {
   this.type = type;
   this.intensity = intensity;
-  this.position = position ? position : undefined;
-  this.direction = direction ? direction : undefined;
+  this.position = position
 }
 
 // Scene setup.
@@ -99,14 +98,15 @@ var projection_plane_z = 1;
 var camera_position = [0, 0, 0];
 var background_color = [255, 255, 255];
 
-var spheres = [new Sphere([0, -1, 3], 1, [255, 0, 0], 10),
+var spheres = [new Sphere([0, -1, 3], 1, [255, 0, 0], 500),
            new Sphere([2, 0, 12], 1, [0, 0, 255], 100),
            new Sphere([-1, 0, 4], 1, [0, 255, 0], 2),
-           new Sphere([0, -5002, 0], 5001, [164, 164, 0], 444)];
+           new Sphere([0, -5002, 0], 5001, [164, 164, 0], 1)];
 
 var lights = [new Light("ambient", 0.2),
-              new Light("point", 0.6, [0, 1, -2]),
-              new Light("directional", 0.6, null, [0, 10, 2])];
+              new Light("point", 0.6, [2, 1, 0]),
+              new Light("directional", 0.2, [1, 4, 4]),
+              new Light("point", 0.5, [1, 10, 25])];
 
 
 // Converts 2D canvas coordinates to 3D viewport coordinates.
@@ -136,6 +136,24 @@ var IntersectRaySphere = function(origin, direction, sphere) {
   return [t1, t2];
 }
 
+var ClosestIntersection = function(origin, direction, t_min, t_max){
+  let closest_t = Infinity;
+  let closest_sphere = null;
+
+  for(let i = 0; i < spheres.length; i++){
+    let ts = IntersectRaySphere(origin, direction, spheres[i]);
+    if(ts[0] < closest_t && t_min < ts[0] && ts[0] < t_max) {
+      closest_t = ts[0];
+      closest_sphere = spheres[i];
+    }
+    if (ts[1] < closest_t && ts[1] < t_max && t_min < ts[1]){
+      closest_sphere = spheres[i];
+      closest_t = ts[1];
+    }
+  }
+  return [closest_t, closest_sphere];
+}
+
 var ComputeLighting = function(P, N, V, s){
   i = 0.0;
   for(let index = 0; index < lights.length; index++){
@@ -147,18 +165,22 @@ var ComputeLighting = function(P, N, V, s){
       if(light.type == "point"){
         L = Subtract(light.position, P);
       } else {
-        L = light.direction;
-      }
-      let n_dot_l = DotProduct(N, L);
-      if(n_dot_l > 0){
-        i += light.intensity * n_dot_l / (Length(N) * Length(L));
+        L = light.position;
       }
 
-      if(s != -1) {
-        let R = Subtract(ScalarProduct(N, n_dot_l * 2.0), L);
-        let r_dot_v = DotProduct(R, V);
-        if(r_dot_v > 0) {
-          i += light.intensity * Math.pow(r_dot_v / (Length(R) * Length(V)), s);
+      if(ClosestIntersection(P, L, 0.001, 1.0)[1] == null){
+
+        let n_dot_l = DotProduct(N, L);
+        if(n_dot_l > 0){
+          i += light.intensity * n_dot_l / (Length(N) * Length(L));
+        }
+
+        if(s != -1) {
+          let R = Subtract(ScalarProduct(N, n_dot_l * 2.0), L);
+          let r_dot_v = DotProduct(R, V);
+          if(r_dot_v > 0) {
+            i += light.intensity * Math.pow(r_dot_v / (Length(R) * Length(V)), s);
+          }
         }
       }
     }
@@ -169,20 +191,9 @@ var ComputeLighting = function(P, N, V, s){
 
 // Traces a ray against the set of spheres in the scene.
 var TraceRay = function(origin, direction, min_t, max_t) {
-  var closest_t = Infinity;
-  var closest_sphere = null;
-
-  for (var i = 0; i < spheres.length; i++) {
-    var ts = IntersectRaySphere(origin, direction, spheres[i]);
-    if (ts[0] < closest_t && min_t < ts[0] && ts[0] < max_t) {
-      closest_t = ts[0];
-      closest_sphere = spheres[i];
-    }
-    if (ts[1] < closest_t && min_t < ts[1] && ts[1] < max_t) {
-      closest_t = ts[1];
-      closest_sphere = spheres[i];
-    }
-  }
+  let intersection = ClosestIntersection(origin, direction, min_t, max_t);
+  let closest_t = intersection[0];
+  let closest_sphere = intersection[1];
 
   if (closest_sphere == null) {
     return background_color;
@@ -191,7 +202,8 @@ var TraceRay = function(origin, direction, min_t, max_t) {
   let point = Add(origin, ScalarProduct(direction, closest_t));
   let normal = Subtract(point, closest_sphere.center);
   normal = ScalarDivide(normal, Length(normal));
-  let result = BrightenColor(closest_sphere.color, ComputeLighting(point, normal, ScalarProduct(direction, -1), closest_sphere.specular));
+  let lighting = ComputeLighting(point, normal, ScalarProduct(direction, -1), closest_sphere.specular);
+  let result = BrightenColor(closest_sphere.color, lighting);
   return result;
 }
 
@@ -199,9 +211,10 @@ var TraceRay = function(origin, direction, min_t, max_t) {
 // Main loop.
 //
 function Render(){
+  let count = 0;
   for (var x = -canvas.width/2; x < canvas.width/2; x++) {
     for (var y = -canvas.height/2; y < canvas.height/2; y++) {
-      var direction = CanvasToViewport([x, y])
+      var direction = CanvasToViewport([x, y]);
       var color = TraceRay(camera_position, direction, 1, Infinity);
       PutPixel(x, y, color);
     }
@@ -227,9 +240,25 @@ function handleKeyDown(event){
   if(key == "KeyD"){
     ++camera_position[0];
   }
+  if(key == "ArrowUp"){
+    ++projection_plane_z;
+  }
+  if(key == "ArrowDown"){
+    --projection_plane_z;
+  }
+  UpdateRender();
+}
+
+function zoom(event) {
+  if(event.deltaY < 0) {
+    ++camera_position[2];
+  } else {
+    --camera_position[2];
+  }
   UpdateRender();
 }
 
 document.addEventListener("keydown", handleKeyDown);
+document.addEventListener("wheel", zoom);
 
 UpdateRender();

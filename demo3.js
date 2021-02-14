@@ -224,6 +224,3 @@ for (var x = -canvas.width/2; x < canvas.width/2; x++) {
 }
 
 UpdateCanvas();
-
-
-</
