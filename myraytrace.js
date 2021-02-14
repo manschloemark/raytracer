@@ -40,6 +40,8 @@ var UpdateCanvas = function() {
 //  Linear algebra and helpers.
 // ======================================================================
 
+var EPSILON = 0.001;
+
 // Dot product of two 3D vectors.
 var DotProduct = function(v1, v2) {
   return v1[0]*v2[0] + v1[1]*v2[1] + v1[2]*v2[2];
@@ -79,11 +81,12 @@ var BrightenColor = function(color, i){
 // ======================================================================
 
 // A Sphere.
-var Sphere = function(center, radius, color, specular) {
+var Sphere = function(center, radius, color, specular, reflective) {
   this.center = center;
   this.radius = radius;
   this.color = color;
   this.specular = specular;
+  this.reflective = reflective;
 }
 
 var Light = function(type, intensity, position) {
@@ -92,16 +95,18 @@ var Light = function(type, intensity, position) {
   this.position = position
 }
 
+// GLOBALS - globals - Globals
 // Scene setup.
+var reflection_limit = 2;
 var viewport_size = 1;
 var projection_plane_z = 1;
 var camera_position = [0, 0, 0];
-var background_color = [255, 255, 255];
+var background_color = [0, 0, 0];
 
-var spheres = [new Sphere([0, -1, 3], 1, [255, 0, 0], 500),
-           new Sphere([2, 0, 12], 1, [0, 0, 255], 100),
-           new Sphere([-1, 0, 4], 1, [0, 255, 0], 2),
-           new Sphere([0, -5002, 0], 5001, [164, 164, 0], 1)];
+var spheres = [new Sphere([0, -1, 3], 1, [255, 0, 0], 500, 0.33),
+           new Sphere([2, 0, 12], 1, [0, 0, 255], 100, 0.5),
+           new Sphere([-1, 0, 4], 1, [0, 255, 0], 2, 0.1),
+           new Sphere([0, -5002, 0], 5001, [164, 164, 0], 1, 0.0)];
 
 var lights = [new Light("ambient", 0.2),
               new Light("point", 0.6, [2, 1, 0]),
@@ -116,6 +121,9 @@ var CanvasToViewport = function(p2d) {
       projection_plane_z];
 }
 
+var ReflectRay = function(R, N) {
+  return ScalarProduct(Subtract(DotProduct(N, DotProduct(N, R)), R), 2);
+}
 
 // Computes the intersection of a ray and a sphere. Returns the values
 // of t for the intersections.
@@ -168,7 +176,7 @@ var ComputeLighting = function(P, N, V, s){
         L = light.position;
       }
 
-      if(ClosestIntersection(P, L, 0.001, 1.0)[1] == null){
+      if(ClosestIntersection(P, L, EPSILON, 1.0)[1] == null){
 
         let n_dot_l = DotProduct(N, L);
         if(n_dot_l > 0){
@@ -190,7 +198,7 @@ var ComputeLighting = function(P, N, V, s){
 
 
 // Traces a ray against the set of spheres in the scene.
-var TraceRay = function(origin, direction, min_t, max_t) {
+var TraceRay = function(origin, direction, min_t, max_t, recursion_depth) {
   let intersection = ClosestIntersection(origin, direction, min_t, max_t);
   let closest_t = intersection[0];
   let closest_sphere = intersection[1];
@@ -202,9 +210,18 @@ var TraceRay = function(origin, direction, min_t, max_t) {
   let point = Add(origin, ScalarProduct(direction, closest_t));
   let normal = Subtract(point, closest_sphere.center);
   normal = ScalarDivide(normal, Length(normal));
+
   let lighting = ComputeLighting(point, normal, ScalarProduct(direction, -1), closest_sphere.specular);
-  let result = BrightenColor(closest_sphere.color, lighting);
-  return result;
+  let local_color = BrightenColor(closest_sphere.color, lighting);
+
+  if(closest_sphere.reflective > 0 && recursion_depth > 0){
+    let reflection = ReflectRay(ScalarProduct(direction, -1), normal);
+    reflection_color = TraceRay(point, reflection, EPSILON, Infinity, recursion_depth - 1);
+    return Add(BrightenColor(local_color, (1 - closest_sphere.reflective)),
+           BrightenColor(reflection_color, closest_sphere.reflective));
+  } else {
+    return local_color;
+  }
 }
 
 //
@@ -215,15 +232,45 @@ function Render(){
   for (var x = -canvas.width/2; x < canvas.width/2; x++) {
     for (var y = -canvas.height/2; y < canvas.height/2; y++) {
       var direction = CanvasToViewport([x, y]);
-      var color = TraceRay(camera_position, direction, 1, Infinity);
+      var color = TraceRay(camera_position, direction, 1, Infinity, reflection_limit);
       PutPixel(x, y, color);
     }
   }
 }
 
+function UpdateUI(){
+  let sphereHTML = "";
+  for(let i = 0; i < spheres.length; i++){
+    let pHTML = '<p>';
+    for(let key in spheres[i]){
+      pHTML += `${key}: ${spheres[i][key]} | `;
+    }
+    pHTML += '</p>';
+      sphereHTML += pHTML;
+  }
+  let sphereDiv = document.getElementById("sphere-info")
+  sphereDiv.innerHTML = sphereHTML;
+  let lightHTML = "";
+  for(let i = 0; i < lights.length; i++){
+    let pHTML = '<p>';
+    for(let key in lights[i]){
+      pHTML += `${key}: ${lights[i][key]}`;
+    }
+    pHTML += '</p>';
+    lightHTML += pHTML;
+  }
+  let lightDiv = document.getElementById("lights")
+  lightDiv.innerHTML = lightHTML;
+  let cameraDiv = document.getElementById("camera")
+  cameraDiv.textContent = JSON.stringify(camera_position);
+  let reflectionP = document.getElementById("reflection-limit")
+  reflectionP.textContent = reflection_limit;
+}
+
 function UpdateRender(){
   Render();
   UpdateCanvas();
+  UpdateUI();
 }
 
 function handleKeyDown(event){
@@ -246,6 +293,12 @@ function handleKeyDown(event){
   if(key == "ArrowDown"){
     --projection_plane_z;
   }
+  if(key == "KeyR"){
+    ++reflection_limit;
+  }
+  if(key == "KeyT"){
+    --reflection_limit;
+  }
   UpdateRender();
 }
 
@@ -261,4 +314,5 @@ function zoom(event) {
 document.addEventListener("keydown", handleKeyDown);
 document.addEventListener("wheel", zoom);
 
+window.addEventListener("DOMContentLoaded", UpdateRender);
 UpdateRender();
