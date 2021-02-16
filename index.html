@@ -3,20 +3,24 @@
     <head>
         <title>Graphics Fun</title>
         <meta charset="utf-8">
+        <link rel="stylesheet" href="./style.css" />
     </head>
     <body>
         <canvas id="canvas" width="720" height="480">
 
         </canvas>
-        <div id="ui">
-            <div id="sphere-info"></div>
-            <div id="lights"></div>
-            <div id="camera"></div>
-            <p id="reflection-limit"></p>
+        <div id="controls">
+            <div id="camera">
+                <p>Camera</p>
+                <label for="x-rotate">X Rotation:</label>
+                <input type="number" id="x-rotate" name="x-rotate">
+                <label for="y-rotate">Y Rotation:</label>
+                <input type="number" id="y-rotate" name="y-rotate">
+                <label for="z-rotate">Z Rotation:</label>
+                <input type="number" id="z-rotate" name="z-rotate">
+                <button id="set-camera" type="button">Update</button>
+            </div>
         </div>
-        <script src="./myraytrace.js"></script>
+        <script src="./raytrace.js"></script>
     </body>
-    <style>
-        #ui * { outline: 1px solid black; display: flex;}
-    </style>
 </html>

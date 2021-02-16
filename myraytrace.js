@@ -68,12 +68,62 @@ var ScalarDivide = function(v, s){
   return [v[0] / s, v[1] / s, v[2] / s];
 }
 
+var MatrixProduct = function(m, v){
+  let result = [0, 0, 0];
+
+  for(let i = 0; i < 3; i++){
+    for(let j = 0; j < 3; j++){
+      result[i] += v[j] * m[i][j];
+    }
+  }
+  return result;
+}
+
 var Clamp = function(min, max, value){
   return Math.min(Math.max(min, value), max);
 }
 
 var BrightenColor = function(color, i){
  return [Clamp(0, 255, color[0] * i), Clamp(0, 255, color[1] * i), Clamp(0, 255, color[2] * i)];
+}
+
+var DegreesToRadians = function(degrees){
+  return (degrees * Math.PI) / 180;
+}
+
+//=======================================================================
+//  Factory functions that return rotation matrices for different axes
+//=======================================================================
+
+var XRotationMatrix = function(degrees){
+  const radians = DegreesToRadians(degrees);
+  return [
+    [1, 0, 0],
+    [0, Math.cos(radians), -Math.sin(radians)],
+    [0, Math.sin(radians), Math.cos(radians)]
+  ];
+}
+
+var YRotationMatrix = function(degrees){
+  const radians = DegreesToRadians(degrees);
+  return [
+    [Math.cos(radians), 0, Math.sin(radians)],
+    [0, 1, 0],
+    [-Math.sin(radians), 0, Math.cos(radians)]
+  ];
+}
+
+var ZRotationMatrix = function(degrees){
+  const radians = DegreesToRadians(degrees);
+  return [
+    [Math.cos(radians), -Math.sin(radians), 0],
+    [Math.sin(radians), Math.cos(radians), 0],
+    [0, 0, 1]
+  ];
+}
+
+var GetRotationMatrix = function(x, y, z){
+  return [XRotationMatrix(x), YRotationMatrix(y), ZRotationMatrix(z)]
 }
 
 // ======================================================================
@@ -100,18 +150,18 @@ var Light = function(type, intensity, position) {
 var reflection_limit = 2;
 var viewport_size = 1;
 var projection_plane_z = 1;
-var camera_position = [0, 0, 0];
+var camera_position = [0, 2, -3];
+var rotation_matrix = GetRotationMatrix(20, 0, 0);
 var background_color = [0, 0, 0];
 
 var spheres = [new Sphere([0, -1, 3], 1, [255, 0, 0], 500, 0.33),
            new Sphere([2, 0, 12], 1, [0, 0, 255], 100, 0.5),
            new Sphere([-1, 0, 4], 1, [0, 255, 0], 2, 0.1),
-           new Sphere([0, -5002, 0], 5001, [164, 164, 0], 1, 0.0)];
+           new Sphere([0, -5002, 0], 5001, [164, 164, 0], 1, 0.7)];
 
 var lights = [new Light("ambient", 0.2),
               new Light("point", 0.6, [2, 1, 0]),
-              new Light("directional", 0.2, [1, 4, 4]),
-              new Light("point", 0.5, [1, 10, 25])];
+              new Light("directional", 0.2, [1, 4, 4])];
 
 
 // Converts 2D canvas coordinates to 3D viewport coordinates.
@@ -224,14 +274,31 @@ var TraceRay = function(origin, direction, min_t, max_t, recursion_depth) {
   }
 }
 
+function UpdateRotationMatrix(event){
+  const xDegrees = document.getElementById("x-rotation").value;
+  const yDegrees = document.getElementById("y-rotation").value;
+  const zDegrees = document.getElementById("z-rotation").value;
+  rotation_matrix = GetRotationMatrix(xDegrees, yDegrees, zDegrees);
+  UpdateRender();
+}
+
 //
 // Main loop.
 //
+
+function RotateCamera(rotation_matrix, direction){
+  for(let i = 0; i < rotation_matrix.length; i++){
+    direction = MatrixProduct(rotation_matrix[i], direction);
+  }
+  return direction;
+}
+
 function Render(){
-  let count = 0;
   for (var x = -canvas.width/2; x < canvas.width/2; x++) {
     for (var y = -canvas.height/2; y < canvas.height/2; y++) {
       var direction = CanvasToViewport([x, y]);
+      direction = RotateCamera(rotation_matrix, direction);
+      //document.getElementById("direction").textContent = JSON.stringify(direction);
       var color = TraceRay(camera_position, direction, 1, Infinity, reflection_limit);
       PutPixel(x, y, color);
     }
@@ -262,7 +329,8 @@ function UpdateUI(){
   let lightDiv = document.getElementById("lights")
   lightDiv.innerHTML = lightHTML;
   let cameraDiv = document.getElementById("camera")
-  cameraDiv.textContent = JSON.stringify(camera_position);
+  cameraDiv.textContent = JSON.stringify(camera_position)
+                          + JSON.stringify(rotation_matrix);
   let reflectionP = document.getElementById("reflection-limit")
   reflectionP.textContent = reflection_limit;
 }
@@ -274,32 +342,41 @@ function UpdateRender(){
 }
 
 function handleKeyDown(event){
-  key = event.code;
+  const key = event.code;
+  let update = false;
   if(key == "KeyW"){
     ++camera_position[1];
+    update = true;
   }
   if(key == "KeyA"){
     --camera_position[0];
+    update = true;
   }
   if(key == "KeyS"){
     --camera_position[1];
+    update = true;
   }
   if(key == "KeyD"){
     ++camera_position[0];
+    update = true;
   }
   if(key == "ArrowUp"){
     ++projection_plane_z;
+    update = true;
   }
   if(key == "ArrowDown"){
     --projection_plane_z;
+    update = true;
   }
   if(key == "KeyR"){
     ++reflection_limit;
+    update = true;
   }
   if(key == "KeyT"){
     --reflection_limit;
+    update = true;
   }
-  UpdateRender();
+  if(update) UpdateRender();
 }
 
 function zoom(event) {
@@ -315,4 +392,5 @@ document.addEventListener("keydown", handleKeyDown);
 document.addEventListener("wheel", zoom);
 
 window.addEventListener("DOMContentLoaded", UpdateRender);
-UpdateRender();
+document.getElementById("submit-rotation").addEventListener("click", UpdateRotationMatrix);
+//UpdateRender();
