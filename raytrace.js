@@ -131,12 +131,12 @@ function ReflectRay(reflect, normal){
     return Subtract(ScalarMultiply(normal, 2 * DotProduct(normal, reflect)), reflect);
 }
 
-function IntersectRaySphere(origin, direction, sphere){
+function IntersectRaySphere(origin, direction, sphere, a){
     let oc = Subtract(origin, sphere.center);
 
     // Young Mark would have never expected that I would use the quadratic
     // equation in my adult life... and on my own volition!
-    let a = DotProduct(direction, direction);
+    //let a = DotProduct(direction, direction); - Passing a from ClosestIntersection because it does not change
     let b = DotProduct(oc, direction) * 2;
     let c = DotProduct(oc, oc) - sphere.radius * sphere.radius;
 
@@ -154,8 +154,9 @@ function ClosestIntersection(origin, direction, minT, maxT){
     let closestT = Infinity;
     let closestSphere = null;
 
+    const dDotd = DotProduct(direction, direction);
     for(let i = 0; i < Scene.spheres.length; i++){
-        let ts = IntersectRaySphere(origin, direction, Scene.spheres[i]);
+        let ts = IntersectRaySphere(origin, direction, Scene.spheres[i], dDotd);
         if( ts[0] < closestT && ts[0] > minT && ts[0] < maxT ){
             closestT = ts[0];
             closestSphere = Scene.spheres[i];
