@@ -54,27 +54,33 @@ function DegreesToRadians(degrees){
   
 function XRotationMatrix(degrees){
     const radians = DegreesToRadians(degrees);
+    const cosValue = Math.cos(radians);
+    const sinValue = Math.sin(radians);
     return [
       [1, 0, 0],
-      [0, Math.cos(radians), -Math.sin(radians)],
-      [0, Math.sin(radians), Math.cos(radians)]
+      [0, cosValue, -sinValue],
+      [0, sinValue, cosValue]
     ];
   }
   
 function YRotationMatrix(degrees){
     const radians = DegreesToRadians(degrees);
+    const cosValue = Math.cos(radians);
+    const sinValue = Math.sin(radians);
     return [
-      [Math.cos(radians), 0, Math.sin(radians)],
+      [cosValue, 0, sinValue],
       [0, 1, 0],
-      [-Math.sin(radians), 0, Math.cos(radians)]
+      [-sinValue, 0, cosValue]
     ];
   }
   
 function ZRotationMatrix(degrees){
     const radians = DegreesToRadians(degrees);
+    const cosValue = Math.cos(radians);
+    const sinValue = Math.sin(radians);
     return [
-      [Math.cos(radians), -Math.sin(radians), 0],
-      [Math.sin(radians), Math.cos(radians), 0],
+      [cosValue, -sinValue, 0],
+      [sinValue, cosValue, 0],
       [0, 0, 1]
     ];
 }
@@ -290,13 +296,13 @@ const Scene = (() => {
         new Sphere([0, -1, 3], 1, [255, 255, 255], 100, 0.5),
         new Sphere([2, 1, 5], 1, [255, 0, 0], 1000, 0.2),
         new Sphere([0, -502, 0], 501, [30, 80, 10], 1, 0.1),
-        new Sphere([-300, 20, 1000], 50, [248, 248, 248], 10000, 0.8)
+        new Sphere([-300, 20, 1000], 50, [248, 248, 248], 10000, 0.8),
     ];
 
     let lights = [
-        new Light(Light.ambient, 0.18),
+        new Light(Light.ambient, 0.58),
         //new Light(Light.directional, 0.3, [1, 0, 0]),
-        new Light(Light.point, 0.5, [-500, -70, -100])
+        new Light(Light.point, 0, [-500, -70, -100])
     ];
 
     return {
@@ -314,23 +320,25 @@ const Scene = (() => {
 // Misc stuff for fun
 
 function canvasClicked(event){
-    console.log(event);
+    /*
+        This function will generate a sphere with random size, color, and reflective properties
+        at a location where it appears centered on the pixel that was clicked from the camera's perspective.
+    */
     let x = event.offsetX - canvas.width / 2;
     let y = canvas.height / 2 - event.offsetY;
     let position = CanvasToViewport([x, y]);
-    position = ScalarMultiply(position, Math.random() * 100 + 10);
+    position = Add(Scene.cameraPosition, RotateVector(Scene.rotation, ScalarMultiply(position, Math.random() * 100 + 10)));
     let randomColor = [
         Math.random() * 255,
         Math.random() * 255,
         Math.random() * 255
     ];
     let randomSphere = new Sphere(position, Math.random() * 5 + 1, randomColor, Math.random() * 1000, Math.random())
-    console.log(randomSphere);
     Scene.spheres.push(randomSphere);
     UpdateRender();
 }
 
-function UpdateCamera(event){
+function UpdateCameraRotation(event){
     const xDegrees = document.getElementById("x-rotate").value;
     const yDegrees = document.getElementById("y-rotate").value;
     const zDegrees = document.getElementById("z-rotate").value;
@@ -339,5 +347,5 @@ function UpdateCamera(event){
 }
 
 canvas.addEventListener("click", canvasClicked);
-document.getElementById("set-camera").addEventListener("click", UpdateCamera);
+document.getElementById("set-camera").addEventListener("click", UpdateCameraRotation);
 UpdateRender();
