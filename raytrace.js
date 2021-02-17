@@ -150,6 +150,17 @@ function IntersectRaySphere(origin, direction, sphere, a){
     return [t1, t2];
 }
 
+function AnyIntersection(origin, direction, minT, maxT){
+    const dDotd = DotProduct(direction, direction);
+    for(let i = 0; i < Scene.spheres.length; i++){
+        let ts = IntersectRaySphere(origin, direction, Scene.spheres[i], dDotd);
+        if(( ts[0] > minT && ts[0] < maxT ) || ( ts[1] > minT && ts[1] < maxT )){
+            return true;
+        }
+    }
+    return false
+}
+
 function ClosestIntersection(origin, direction, minT, maxT){
     let closestT = Infinity;
     let closestSphere = null;
@@ -185,7 +196,7 @@ function ComputeLighting(point, normal, vector, specular){
                 lightRay = light.position;
             }
 
-            if(ClosestIntersection(point, lightRay, EPSILON, 1.0)[1] == null){
+            if(!AnyIntersection(point, lightRay, EPSILON, 1.0)){
                 let normalDotLightRay = DotProduct(normal, lightRay);
                 if(normalDotLightRay > 0){
                     intensity += light.intensity * normalDotLightRay / (Length(normal) * Length(lightRay));
@@ -286,11 +297,11 @@ function UpdateRender(){
 // Scene
 
 const Scene = (() => {
-    let cameraPosition = [0, 10, -20];
+    let cameraPosition = [0, 50, -80];
     let viewportSize = 1;
     let reflectionLimit = 4;
     let projectionZ = 1;
-    let rotation = RotationMatrix(10, 0, 0);
+    let rotation = RotationMatrix(25, 0, 0);
     let backgroundColor = [8, 8, 16];
 
     let spheres = [
@@ -301,9 +312,9 @@ const Scene = (() => {
     ];
 
     let lights = [
-        new Light(Light.ambient, 0.58),
-        //new Light(Light.directional, 0.3, [1, 0, 0]),
-        new Light(Light.point, 0, [-500, -70, -100])
+        new Light(Light.ambient, 0.2),
+        new Light(Light.directional, 0.3, [0, 1, -1]),
+        //new Light(Light.point, 0.5, [-500, -70, -100])
     ];
 
     return {
