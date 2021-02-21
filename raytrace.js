@@ -542,32 +542,45 @@ const Scene = (() => {
             }
             if (sphereGroup.length > 1) {
                 let center = Midpoint(sphereGroup.map(sphere => sphere.center));
-                console.log("Sphere group", sphereGroup);
-                console.log("Center of sphere group", center);
-                console.log("Diameter of sphere group", maxSphereDistance);
-                let boundingSphere = new BoundingSphere(center, distance, sphereGroup);
+                // console.log("Sphere group", sphereGroup);
+                // console.log("Center of sphere group", center);
+                // console.log("Diameter of sphere group", maxSphereDistance);
+                let boundingSphere = new BoundingSphere(center, maxSphereDistance, sphereGroup);
                 
                 // Check if the current bounding sphere exists wholly within
                 // an existing bounding sphere
                 // If it does, it is redundant.
-                let redundant = false;
-                for (let i = 0; i < newBoundingSpheres.length; i++) {
-                    let existingBoundingSphere = newBoundingSpheres[i];
-                    if ((Length(Subtract(existingBoundingSphere.center, boundingSphere.center))
-                        + boundingSphere.radius) > existingBoundingSphere.radius) {
-                        redundant = true;
+
+                if (newBoundingSpheres.every(existingBoundingSphere => {
+                    (Length(
+                            Subtract(
+                                existingBoundingSphere.center,
+                                boundingSphere.center
+                                )
+                            ) + boundingSphere.radius) <= existingBoundingSphere.radius
+                    }))
+                    {
+                      newBoundingSpheres.push(boundingSphere);
+                      boundingSphere.nestedSpheres.forEach(sphere => sphere.isBound = true);  
                     }
-                }
-                if ( ! redundant ) {
-                    newBoundingSpheres.push(boundingSphere);
-                    boundingSphere.nestedSpheres.forEach(sphere => sphere.isBound = true);
-                }
+                // let redundant = false;
+                // for (let i = 0; i < newBoundingSpheres.length; i++) {
+                //     let existingBoundingSphere = newBoundingSpheres[i];
+                //     if ((Length(Subtract(existingBoundingSphere.center, boundingSphere.center))
+                //         + boundingSphere.radius) > existingBoundingSphere.radius) {
+                //         redundant = true;
+                //     }
+                // }
+                // if ( ! redundant ) {
+                //     newBoundingSpheres.push(boundingSphere);
+                //     boundingSphere.nestedSpheres.forEach(sphere => sphere.isBound = true);
+                // }
             }
         }
         // Now I need to get all spheres that do not appear
         // in any bounding spheres.
-        console.log(newBoundingSpheres);
         this.checkSpheres = newBoundingSpheres.concat(spheres.filter(sphere => ! sphere.isBound));
+        console.log(this.checkSpheres);
     }
 
     return {
@@ -608,7 +621,7 @@ function canvasClicked(event){
     // TODO : clean this up
     // TODO : make a Scene method that updates existing bounding spheres instead of
     //        recreating all of them.
-    Scene.generateBoundingSpheres(10);
+    Scene.generateBoundingSpheres(100);
     UpdateRender();
 }
 
@@ -624,6 +637,6 @@ canvas.addEventListener("click", canvasClicked);
 document.getElementById("set-camera").addEventListener("click", UpdateCameraRotation);
 
 // Currently testing this!
-Scene.generateBoundingSpheres(10);
+Scene.generateBoundingSpheres(100);
 
 UpdateRender();
