@@ -136,6 +136,7 @@ function Sphere(center, radius, color, specular, reflection){
         specular,
         reflection,
         bounding: false,
+        isBound:false,
     };
 }
 
@@ -231,7 +232,7 @@ function ClosestIntersection(origin, direction, minT, maxT){
         if( ts[0] < closestT && ts[0] > minT && ts[0] < maxT ){
             if (sphere.bounding) {
                 for (let j = 0; j < sphere.nestedSpheres.length; j++) {
-                    let nsphere = Scene.spheres[j];
+                    let nsphere = sphere.nestedSpheres[j];
                     let nts = IntersectRaySphere(origin, direction, nsphere, dDotd);
                     if ( nts[0] < closestT && nts[0] > minT && nts[0] < maxT ){
                         closestT = nts[0];
@@ -250,7 +251,7 @@ function ClosestIntersection(origin, direction, minT, maxT){
         if( ts[1] < closestT && ts[1] > minT && ts[1] < maxT ){
             if (sphere.bounding) {
                 for(let j = 0; j < sphere.nestedSpheres.length; j++) {
-                    let nsphere = Scene.spheres[j];
+                    let nsphere = sphere.nestedSpheres[j];
                     let nts = IntersectRaySphere(origin, direction, nsphere, dDotd);
                     if( nts[0] < closestT && nts[0] > minT && nts[0] < maxT ){
                         closestT = nts[0];
@@ -401,11 +402,11 @@ function UpdateRender(){
 // Scene
 
 const Scene = (() => {
-    let cameraPosition = [0, 20, 5];
+    let cameraPosition = [0, 0, -50];
     let viewportSize = 1;
     let reflectionLimit = 4;
     let projectionZ = 1;
-    let rotation = RotationMatrix(90, 0, 0);
+    let rotation = RotationMatrix(0, 0, 0);
     let backgroundColor = [8, 8, 16];
     let lastShadow = false;
 
@@ -420,9 +421,9 @@ const Scene = (() => {
     // Debugging for specific goals
     let spheres = [
         new Sphere([-2, 0, 5], 1, [255, 0, 0], -1, 1),
-        new Sphere([2, 0, 5], 1, [0, 0, 255], -1, 1),
-        new Sphere([6, 0, 5], 1, [0, 255, 0], -1, 1),
-        //new Sphere([0, 10, 10], 1, [0, 255, 0], -1, 1),
+        new Sphere([0, 0, 5], 1, [0, 0, 255], -1, 1),
+        new Sphere([2, 0, 5], 1, [0, 255, 0], -1, 1),
+        new Sphere([0, 6, 10], 1, [0, 255, 0], -1, 1),
     ];
 
     let checkSpheres = [];
@@ -449,7 +450,8 @@ const Scene = (() => {
 
         // So how do I do this?
         // I guess that right now the performance of this function is not hugely important.
-        // I'm only going to call it once on startup and whenever a sphere is added.
+        // I'm only going to call it once on startup.
+        // Later I'll make it run whenever a sphere is added - but maybe I can make a faster version for that case.
 
         // Brute force?
         // Loop through all spheres. 
@@ -475,7 +477,46 @@ const Scene = (() => {
 
         // There are some 'leads' I have:
         //  If a sphere is not in range of ANY other spheres, you can safely remove that from all other calculations.
-        //  
+        //
+
+        // Okay. I got this working today, Saturday 2/20.
+        // It went smoother than expected
+        // I want to take note of some things before I forget
+
+        // * Scene now has an attribute checkSpheres which is an
+        //   array that contains all of the bounding spheres
+        //   and all spheres that do not appear in any bounding spheres
+        //   Those two kinds of spheres are the set of all spheres in the scene.
+
+        // * Spheres now have an attribute isBound that I use
+        //   to determine which spheres need to be added to
+        //   checkSpheres individually.
+
+        // * I'm not 100% satisfied on the way I use these in the actual
+        //   ray tracing part of the program.
+        //   * Sphere and BoundingSphere 'classes' have boolean attributes called
+        //     bounding. BoundingSpheres have this set to true.
+        //     This is because IntersectRaySphere does not know the difference
+        //     between the types of spheres.
+        //     So in ClosestSphere, you have to check if a sphere is a bounding
+        //     sphere and if it is you must then loop through the bounded spheres.
+        //     This is currently implemented in a **really** ugly fashion.
+        //     I'd like to do more thinking about this and come up with a better
+        //     API.
+
+        // * The outer most list creates a sphereGroup Array each pass
+        //   but sometimes it ends without any addition spheres added
+        //   in this case I do not bother to make a boundingSphere because it is an
+        //   isolated sphere.
+        
+        // * Sometimes I make redundant BoundingSpheres that are sub-spheres of
+        //   existing bounding spheres.
+        //   To prevent this from effecting the rendering I check each bounding sphere
+        //   if it is completely encapsulated by an existing bounding sphere.
+        //   This works. But I wonder if there's an easier way to prevent this from happening
+        //   entirely.
+
+        // * This is still majorly a work in progress!
 
         // I'm just gonna try getting something out there before work
         let newBoundingSpheres = []; // Temp array for new spheres so I don't alter Scene.spheres while looping
@@ -496,6 +537,7 @@ const Scene = (() => {
                 }
                 if (fitsInGroup) {
                     sphereGroup.push(sphereB);
+                    //sphereB.isBound = true;
                 }
             }
             if (sphereGroup.length > 1) {
@@ -506,7 +548,7 @@ const Scene = (() => {
                 let boundingSphere = new BoundingSphere(center, distance, sphereGroup);
                 
                 // Check if the current bounding sphere exists wholly within
-                // and existing bounding sphere
+                // an existing bounding sphere
                 // If it does, it is redundant.
                 let redundant = false;
                 for (let i = 0; i < newBoundingSpheres.length; i++) {
@@ -518,13 +560,14 @@ const Scene = (() => {
                 }
                 if ( ! redundant ) {
                     newBoundingSpheres.push(boundingSphere);
+                    boundingSphere.nestedSpheres.forEach(sphere => sphere.isBound = true);
                 }
-            } else {
-                newBoundingSpheres.push(spheres[i]);
             }
         }
+        // Now I need to get all spheres that do not appear
+        // in any bounding spheres.
         console.log(newBoundingSpheres);
-        this.checkSpheres = newBoundingSpheres;
+        this.checkSpheres = newBoundingSpheres.concat(spheres.filter(sphere => ! sphere.isBound));
     }
 
     return {
@@ -562,6 +605,10 @@ function canvasClicked(event){
     ];
     let randomSphere = new Sphere(position, Math.random() * 5 + 1, randomColor, Math.random() * 1000, Math.random())
     Scene.spheres.push(randomSphere);
+    // TODO : clean this up
+    // TODO : make a Scene method that updates existing bounding spheres instead of
+    //        recreating all of them.
+    Scene.generateBoundingSpheres(10);
     UpdateRender();
 }
 
