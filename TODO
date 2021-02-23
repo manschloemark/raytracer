@@ -1,0 +1,19 @@
+Homebrew RayTracer
+
+Graphics Code:
+  ☐ Clean up BoundingSphere code
+  ✔ Improve subsampling - can I generalize it to be N pixel subsampling? @done(21-02-22 19:22)
+    ✔ Impemented n-pixel subsampling along the y-axis. @done(21-02-22 19:23)
+    ☐ Maybe I can implement it along the x-axis as well?
+  ☐ Translucent Shapes
+  ☐ Outline Shapes
+  ☐ New Shapes
+    ☐ Render Triangles
+    ☐ Render Lines
+    ☐ Render Cubes
+
+U.I. Code:
+  ☐ Re-implement key-binds to move the camera
+    ☐ WASD
+    ☐ Z-Axis movement
+    ☐ Zoom
