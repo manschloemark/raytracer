@@ -20,6 +20,11 @@
             - Some sort of tree?
  */
 
+// Globals while I get user input up and running
+var optimizationDiv = document.getElementById("optimization");
+var cameraDiv = document.getElementById("camera");
+
+
 // Globals that don't feel right inside of the Scene object
 const EPSILON = 0.001;
 
@@ -243,6 +248,10 @@ function ClosestIntersection(origin, direction, minT, maxT) {
     let sphere = Scene.checkSpheres[i];
     let ts = IntersectRaySphere(origin, direction, sphere, dDotd);
 
+    if (sphere.bounding && Scene.outlineBoundingSpheres && Math.abs(ts[0] - ts[1]) < 2.5) {
+      return [ts[0], sphere];
+      }
+
     if (ts[0] < closestT && ts[0] > minT && ts[0] < maxT) {
       if (sphere.bounding) { // If intersects bounding sphere
         for (let j = 0; j < sphere.nestedSpheres.length; j++) {
@@ -343,8 +352,14 @@ function TraceRay(origin, direction, minT, maxT, recursionDepth) {
   let sphere = intersection[1];
   Scene.lastHit = Scene.currentHit;
   Scene.currentHit = sphere;
+
   if (sphere == null) {
-    return Scene.backgroundColor;
+    return Scene.getBackgroundColor(origin, direction);
+  }
+
+  if(sphere.bounding) {
+    // This should only over happen if Scene.outlineBoundingSphere is true
+    return Scene.highlightColor;
   }
 
   let point = Add(origin, ScalarMultiply(direction, t));
@@ -464,7 +479,7 @@ function SubsampleRenderScene(ySubsampling) {
 
 function UpdateRender() {
   const start = performance.now();
-  SubsampleRenderScene(6);
+  SubsampleRenderScene(Scene.subsampling);
   UpdateCanvas();
   console.log(`Rendered in ${performance.now() - start}ms`);
 }
@@ -479,6 +494,9 @@ const Scene = (() => {
   let rotation = RotationMatrix(0, 0, 0);
   let backgroundColor = [8, 8, 16];
   let lastShadow = false;
+  let subsampling = 0;
+  let outlineBoundingSpheres = false;
+  let highlightColor = [255, 255, 255];
 
   // Sample Scene
   // let spheres = [
@@ -512,7 +530,8 @@ const Scene = (() => {
     previousPointBlockedBy = lights.map((light) => null);
   }
 
-  function generateBoundingSpheres(maxDiameter) {
+  function generateBoundingSpheres(maxBoundingSphereDiameter) {
+    spheres.forEach(sphere => sphere.isBound = false);
     // * Scene now has an array checkSpheres which contains bounding spheres and spheres
     //   the nested spheres and top-level spheres comprise the Scene.spheres array
 
@@ -560,7 +579,7 @@ const Scene = (() => {
             Length(Subtract(sphereA.center, sphereB.center)) +
             sphereA.radius +
             sphereB.radius;
-          if (distance > maxDiameter) {
+          if (distance > maxBoundingSphereDiameter) {
             fitsInGroup = false;
           } else {
             maxSphereDistance = Math.max(distance, maxSphereDistance);
@@ -603,6 +622,17 @@ const Scene = (() => {
     );
   }
 
+  function getBackgroundColor(origin, direction) {
+    // This is for fun
+    // Trying to make it so I can determine the background color
+    // based on the vector.
+    // Maybe I can try making a gradient or something?
+    let color = [(Math.cos(direction[1]) + 0.5) * 125,
+                 (Math.sin(direction[0]) + 0.5) * 125,
+                 (Math.cos(direction[1]) + 0.33) * 125];
+    return color;
+  }
+
   return {
     cameraPosition,
     rotation,
@@ -613,64 +643,94 @@ const Scene = (() => {
     generateBoundingSpheres,
     lights,
     backgroundColor,
+    getBackgroundColor,
     reflectionLimit,
     lastShadow,
     previousPointBlockedBy,
     resetBlockerArray,
+    subsampling,
+    outlineBoundingSpheres,
+    highlightColor,
   };
 })();
 
 // Misc stuff for fun
 
-function canvasClicked(event) {
-  /*
-        This function will generate a sphere with random size, color, and reflective properties
-        at a location where it appears centered on the pixel that was clicked from the camera's perspective.
+const ui = (() => {
+  const subsampleInput = document.getElementById("subsamples");
+  const xRotateInput = document.getElementById("x-rotate");
+  const yRotateInput = document.getElementById("y-rotate");
+  const zRotateInput = document.getElementById("z-rotate");
+  const maxBoundingDiameterInput = document.getElementById("bounding-sphere-diameter");
+  const highlightBoundingSphereCheckbox = document.getElementById("bounding-sphere-highlight");
+  
+  function canvasClicked(event) {
+    /*
+    This function will generate a sphere with random size, color, and reflective properties
+    at a location where it appears centered on the pixel that was clicked from the camera's perspective.
     */
-  let x = event.offsetX - canvas.width / 2;
-  let y = canvas.height / 2 - event.offsetY;
-  let position = CanvasToViewport([x, y]);
-  position = Add(
-    Scene.cameraPosition,
-    RotateVector(
-      Scene.rotation,
-      ScalarMultiply(position, Math.random() * 100 + 10)
-    )
-  );
-  let randomColor = [
-    Math.random() * 255,
-    Math.random() * 255,
-    Math.random() * 255,
-  ];
-  let randomSphere = new Sphere(
-    position,
-    Math.random() * 5 + 1,
-    randomColor,
-    Math.random() * 1000,
-    Math.random()
-  );
-  Scene.spheres.push(randomSphere);
-  // TODO : clean this up
-  // TODO : make a Scene method that updates existing bounding spheres instead of
-  //        recreating all of them.
-  Scene.generateBoundingSpheres(100);
-  UpdateRender();
-}
-
-function UpdateCameraRotation(event) {
-  const xDegrees = document.getElementById("x-rotate").value;
-  const yDegrees = document.getElementById("y-rotate").value;
-  const zDegrees = document.getElementById("z-rotate").value;
-  Scene.rotation = RotationMatrix(xDegrees, yDegrees, zDegrees);
-  UpdateRender();
-}
-
-canvas.addEventListener("click", canvasClicked);
-document
-  .getElementById("set-camera")
-  .addEventListener("click", UpdateCameraRotation);
-
-// Currently testing this!
-Scene.generateBoundingSpheres(20);
-
+   let x = event.offsetX - canvas.width / 2;
+   let y = canvas.height / 2 - event.offsetY;
+   let position = CanvasToViewport([x, y]);
+   position = Add(
+     Scene.cameraPosition,
+     RotateVector(
+       Scene.rotation,
+       ScalarMultiply(position, Math.random() * 100 + 10)
+       )
+       );
+       let randomColor = [
+         Math.random() * 255,
+         Math.random() * 255,
+         Math.random() * 255,
+        ];
+        let randomSphere = new Sphere(
+          position,
+          Math.random() * 5 + 1,
+          randomColor,
+          Math.random() * 1000,
+          Math.random()
+          );
+          Scene.spheres.push(randomSphere);
+          Scene.generateBoundingSpheres(100);
+          UpdateRender();
+        }
+        
+  function UpdateCameraRotation() {
+    const xDegrees = xRotateInput.value;
+    const yDegrees = yRotateInput.value;
+    const zDegrees = zRotateInput.value;
+    Scene.rotation = RotationMatrix(xDegrees, yDegrees, zDegrees);
+  }
+  
+  function UpdateOptimizationSettings() {
+    const subsampling = parseInt(subsampleInput.value);
+    const maxBoundingSphereDiameter = parseInt(maxBoundingDiameterInput.value);
+    
+    if (subsampling) {
+      Scene.subsampling = subsampling;
+    }
+    
+    if (maxBoundingSphereDiameter) {
+      Scene.generateBoundingSpheres(maxBoundingSphereDiameter);
+    }
+    Scene.outlineBoundingSpheres = highlightBoundingSphereCheckbox.checked
+  }
+  
+  function UpdateSceneAndRender(event) {
+    UpdateCameraRotation();
+    UpdateOptimizationSettings();
+    UpdateRender();
+  }
+  
+  canvas.addEventListener("click", canvasClicked);
+  
+  document
+  .getElementById("render")
+  .addEventListener("click", UpdateSceneAndRender);
+})();
+        
+        // Currently testing this!
+Scene.generateBoundingSpheres(20);   
 UpdateRender();
+

@@ -11,9 +11,16 @@ Graphics Code:
     ☐ Render Triangles
     ☐ Render Lines
     ☐ Render Cubes
+  ✔ Add a function / something that generates a background color instead of using @started(21-02-23 21:29) @done(21-02-23 21:44) @lasted(15m24s)
+    - a static hard-coded one.
+    ☐ Make this cooler!
 
 U.I. Code:
   ☐ Re-implement key-binds to move the camera
     ☐ WASD
     ☐ Z-Axis movement
     ☐ Zoom
+  ☐ Make DOM module that takes care of all ui.
+    ☐ Keeps inputs up to date
+    ☐ Has extra goodies like render time
+    ☐ Encapsulates all DOM code to keep things organized.

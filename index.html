@@ -9,18 +9,36 @@
         <canvas id="canvas" width="720" height="480">
 
         </canvas>
-        <div id="controls">
-            <div id="camera">
-                <p>Camera</p>
-                <label for="x-rotate">X Rotation:</label>
-                <input type="number" id="x-rotate" name="x-rotate">
-                <label for="y-rotate">Y Rotation:</label>
-                <input type="number" id="y-rotate" name="y-rotate">
-                <label for="z-rotate">Z Rotation:</label>
-                <input type="number" id="z-rotate" name="z-rotate">
-                <button id="set-camera" type="button">Update</button>
+        <div id="control-container">
+        <div class="controls" id="optimization">
+            <h2>Optimization</h2>
+            <label for="subsamples">Subsampling:</label>
+            <input type="number" id="subsamples" name="subsamples" min="1">
+            <label for="bounding-sphere-diameter">Max Bounding Sphere Diameter:</label>
+            <input type="number" id="bounding-sphere-diameter" name="bounding-sphere-diameter" min="0">
+            <div>
+                <input type="checkbox" name="bounding-sphere-highlight" id="bounding-sphere-highlight">
+                <label for="bounding-sphere-highlight">Outline Bounding Spheres</label>
             </div>
         </div>
-        <script src="./raytrace.js"></script>
+        <div id="camera" class="controls">
+            <h2>Camera</h2>
+            <label for="x-rotate">X Rotation:</label>
+            <input type="number" id="x-rotate" name="x-rotate">
+            <label for="y-rotate">Y Rotation:</label>
+            <input type="number" id="y-rotate" name="y-rotate">
+            <label for="z-rotate">Z Rotation:</label>
+            <input type="number" id="z-rotate" name="z-rotate">
+        </div>
+        <button id="render" type="button">Render!</button>
+    </div>
+    <!-- <div id="note-container">
+        <h3>Notes:</h3>
+        <dl>
+            <dt>Subsampling</dt>
+            <dd>If you set the sample rate too high you may skip over entire objects!</dd>
+        </dl>
+    </div> -->
     </body>
+    <script src="./raytrace.js"></script>
 </html>
