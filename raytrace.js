@@ -243,33 +243,29 @@ function OldClosestIntersection(origin, direction, minT, maxT) {
   return [closestT, closestSphere];
 }
 
-function ClosestIntersection(origin, direction, minT, maxT) {
-  let closestT = Infinity;
-  let closestSphere = null;
+function ClosestIntersection(origin, direction, minT, maxT, spheres, closestT, closestSphere) {
+  if (! closestT ) {
+    closestT = Infinity;
+  }
+
+  if (! closestSphere ) {
+    closestSphere = null;
+  }
 
   const dDotd = DotProduct(direction, direction);
-  for (let i = 0; i < Scene.checkSpheres.length; i++) {
-    let sphere = Scene.checkSpheres[i];
+  for (let i = 0; i < spheres.length; i++) {
+    let sphere = spheres[i];
     let ts = IntersectRaySphere(origin, direction, sphere, dDotd);
 
+    // Highlight bounding spheres
     if (sphere.bounding && Scene.outlineBoundingSpheres && Math.abs(ts[0] - ts[1]) < 2.5) {
       return [ts[0], sphere];
       }
 
     if (ts[0] < closestT && ts[0] > minT && ts[0] < maxT) {
       if (sphere.bounding) { // If intersects bounding sphere
-        for (let j = 0; j < sphere.nestedSpheres.length; j++) {
-          let nsphere = sphere.nestedSpheres[j];
-          let nts = IntersectRaySphere(origin, direction, nsphere, dDotd);
-          if (nts[0] < closestT && nts[0] > minT && nts[0] < maxT) {
-            closestT = nts[0];
-            closestSphere = nsphere;
-          }
-          if (nts[1] < closestT && nts[1] > minT && nts[1] < maxT) {
-            closestT = nts[1];
-            closestSphere = nsphere;
-          }
-        }
+        [closestT, closestSphere] = ClosestIntersection(origin, direction, minT, closestT, sphere.nestedSpheres, closestT, closestSphere);
+
       } else {
         closestT = ts[0];
         closestSphere = sphere;
@@ -278,18 +274,7 @@ function ClosestIntersection(origin, direction, minT, maxT) {
 
     if (ts[1] < closestT && ts[1] > minT && ts[1] < maxT) {
       if (sphere.bounding) { // If intersects bounding sphere
-        for (let j = 0; j < sphere.nestedSpheres.length; j++) {
-          let nsphere = sphere.nestedSpheres[j];
-          let nts = IntersectRaySphere(origin, direction, nsphere, dDotd);
-          if (nts[0] < closestT && nts[0] > minT && nts[0] < maxT) {
-            closestT = nts[0];
-            closestSphere = nsphere;
-          }
-          if (nts[1] < closestT && nts[1] > minT && nts[1] < maxT) {
-            closestT = nts[1];
-            closestSphere = nsphere;
-          }
-        }
+        [closestT, closestSphere] = ClosestIntersection(origin, direction, minT, closestT, sphere.nestedSpheres, closestT, closestSphere);
       } else {
         closestT = ts[1];
         closestSphere = sphere;
@@ -351,7 +336,7 @@ function ComputeLighting(point, normal, vector, specular) {
 }
 
 function TraceRay(origin, direction, minT, maxT, recursionDepth) {
-  let intersection = ClosestIntersection(origin, direction, minT, maxT);
+  let intersection = ClosestIntersection(origin, direction, minT, maxT, Scene.checkSpheres);
   let t = intersection[0];
   let object = intersection[1];
   Scene.lastHit = Scene.currentHit;
