@@ -20,16 +20,10 @@
             - Some sort of tree?
  */
 
-// Globals while I get user input up and running
-var optimizationDiv = document.getElementById("optimization");
-var cameraDiv = document.getElementById("camera");
-
-
 // Globals that don't feel right inside of the Scene object
 const EPSILON = 0.001;
 
-//Linear Algebra and other Math
-
+//Linear Algebra and Math functions
 function Midpoint2(v1, v2) {
   return ScalarDivide(Add(v1, v2), 2);
 }
@@ -145,6 +139,7 @@ function BrightenColor(color, i) {
   ];
 }
 
+// Scene objects
 function Sphere(center, radius, color, specular, reflection) {
   return {
     center,
@@ -166,15 +161,6 @@ function BoundingSphere(center, radius, nestedSpheres) {
   };
 }
 
-function Triangle(a, b, c, color) {
-  this.a = a;
-  this.b = b;
-  this.c = c;
-  this.color = color;
-  this.normal = CrossProduct(Subtract(a, c), Subtract(b, c));
-  this.plane = DotProduct(this.normal, this.a);
-}
-
 function Light(type, intensity, position) {
   return {
     type,
@@ -187,6 +173,7 @@ Light.ambient = 0;
 Light.point = 1;
 Light.directional = 2;
 
+// Ray Tracer functions
 function ReflectRay(reflect, normal) {
   return Subtract(
     ScalarMultiply(normal, 2 * DotProduct(normal, reflect)),
@@ -366,32 +353,32 @@ function ComputeLighting(point, normal, vector, specular) {
 function TraceRay(origin, direction, minT, maxT, recursionDepth) {
   let intersection = ClosestIntersection(origin, direction, minT, maxT);
   let t = intersection[0];
-  let sphere = intersection[1];
+  let object = intersection[1];
   Scene.lastHit = Scene.currentHit;
-  Scene.currentHit = sphere;
+  Scene.currentHit = object;
 
-  if (sphere == null) {
+  if (object == null) {
     return Scene.getBackgroundColor(origin, direction);
   }
 
-  if(sphere.bounding) {
+  if(object.bounding) {
     // This should only over happen if Scene.outlineBoundingSphere is true
     return Scene.highlightColor;
   }
 
   let point = Add(origin, ScalarMultiply(direction, t));
-  let normal = Subtract(point, sphere.center);
+  let normal = Subtract(point, object.center);
   normal = ScalarDivide(normal, Length(normal));
   let negativeDirection = ScalarMultiply(direction, -1);
   let lighting = ComputeLighting(
     point,
     normal,
     negativeDirection,
-    sphere.specular
+    object.specular
   );
-  let localColor = BrightenColor(sphere.color, lighting);
+  let localColor = BrightenColor(object.color, lighting);
 
-  if (sphere.reflective > 0 && recursionDepth > 0) {
+  if (object.reflective > 0 && recursionDepth > 0) {
     let reflection = ReflectRay(negativeDirection, normal);
     let reflectionColor = TraceRay(
       point,
@@ -401,14 +388,15 @@ function TraceRay(origin, direction, minT, maxT, recursionDepth) {
       recursionDepth - 1
     );
     localColor = Add(
-      BrightenColor(localColor, 1 - sphere.reflective),
-      BrightenColor(reflectionColor, sphere.reflective)
+      BrightenColor(localColor, 1 - object.reflective),
+      BrightenColor(reflectionColor, object.reflective)
     );
   }
 
   return localColor;
 }
 
+// canvas and pixel placement
 const canvas = document.getElementById("canvas");
 const canvasContext = canvas.getContext("2d");
 const pixelBuffer = canvasContext.getImageData(
@@ -502,7 +490,6 @@ function UpdateRender() {
 }
 
 // Scene
-
 const Scene = (() => {
   let cameraPosition = [0, 0, -50];
   let viewportSize = 1;
@@ -530,10 +517,6 @@ const Scene = (() => {
     new Sphere([0, 0, 5], 1, [0, 0, 255], -1, 1),
     new Sphere([2, 0, 5], 1, [0, 255, 0], -1, 1),
     new Sphere([0, 6, 10], 1, [255, 255, 0], -1, 1),
-  ];
-
-  let triangles = [
-    new Triangle([3, 0, 5], [0, 4, 5], [0, 0, 5], [255, 255, 255]),
   ];
 
   let checkSpheres = [];
@@ -656,17 +639,12 @@ const Scene = (() => {
     return color;
   }
 
-  function getObjects () {
-    return this.checkSpheres.concat(this.triangles);
-  }
-
   return {
     cameraPosition,
     rotation,
     viewportSize,
     projectionZ,
     spheres,
-    triangles,
     checkSpheres,
     generateBoundingSpheres,
     lights,
@@ -680,12 +658,12 @@ const Scene = (() => {
     maxBoundingSphereDiameter,
     outlineBoundingSpheres,
     highlightColor,
-    getObjects,
   };
 })();
 
 // Misc stuff for fun
 
+// module for ui in the HTML
 const ui = (() => {
   const subsampleInput = document.getElementById("subsamples");
   const xRotateInput = document.getElementById("x-rotate");
@@ -764,6 +742,9 @@ const ui = (() => {
 
 
 function handleKeyDown(event){
+  if (event.target.tagName == "INPUT") {
+    return;
+  }
   const key = event.code;
   let update = false;
   if(key == "KeyW"){
@@ -811,7 +792,7 @@ function zoom(event) {
 }
 
 document.addEventListener("keydown", handleKeyDown);
-document.addEventListener("wheel", zoom);
+canvas.addEventListener("wheel", zoom);
         
         // Currently testing this!
 Scene.generateBoundingSpheres(20);   
