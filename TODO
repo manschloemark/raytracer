@@ -8,13 +8,13 @@ Graphics Code:
     ☐ Maybe I can implement it along the x-axis as well?
   ☐ Translucent Shapes
   ☐ Outline Shapes
-  ☐ New Shapes
-    ☐ Render Triangles
-    ☐ Render Lines
-    ☐ Render Cubes
+    ✔ Outline Bounding Spheres @done(21-02-25 14:06)
+      - A lot of missing pixels but it works.
   ✔ Add a function / something that generates a background color instead of using @started(21-02-23 21:29) @done(21-02-23 21:44) @lasted(15m24s)
     - a static hard-coded one.
     ☐ Play around with this kind of stuff more
+  ☐ Texture Coordinates ? (From Scratch A Pixel)
+    ☐ I don't really know much about the geometry of this but it sounds really neat. Would like to learn about it.
 
 U.I. Code:
   ☐ Re-implement key-binds to move the camera @started(21-02-24 11:43)

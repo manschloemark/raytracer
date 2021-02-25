@@ -22,6 +22,7 @@
 
 // Globals that don't feel right inside of the Scene object
 const EPSILON = 0.001;
+const SPHERE_EDGE_THRESHOLD = 2.5;
 
 //Linear Algebra and Math functions
 function Midpoint2(v1, v2) {
@@ -37,9 +38,9 @@ function Midpoint(pointArray) {
 // Vector on Vector action
 function CrossProduct(v1, v2) {
   return [
-    (v1[1] * v2[2] - v1[2] * v2[1]),
-    (v1[2] * v2[0] - v1[0] * v2[2]),
-    (v1[0] * v2[1] - v1[1] * v2[0])
+    v1[1] * v2[2] - v1[2] * v2[1],
+    v1[2] * v2[0] - v1[0] * v2[2],
+    v1[0] * v2[1] - v1[1] * v2[0],
   ];
 }
 
@@ -243,12 +244,16 @@ function OldClosestIntersection(origin, direction, minT, maxT) {
   return [closestT, closestSphere];
 }
 
-function ClosestIntersection(origin, direction, minT, maxT, spheres, closestT, closestSphere) {
-  if (! closestT ) {
-    closestT = Infinity;
-  }
-
-  if (! closestSphere ) {
+function ClosestIntersection(
+  origin,
+  direction,
+  minT,
+  maxT,
+  spheres,
+  closestSphere
+) {
+  let closestT = maxT;
+  if (!closestSphere) {
     closestSphere = null;
   }
 
@@ -257,15 +262,34 @@ function ClosestIntersection(origin, direction, minT, maxT, spheres, closestT, c
     let sphere = spheres[i];
     let ts = IntersectRaySphere(origin, direction, sphere, dDotd);
 
-    // Highlight bounding spheres
-    if (sphere.bounding && Scene.outlineBoundingSpheres && Math.abs(ts[0] - ts[1]) < 2.5) {
-      return [ts[0], sphere];
-      }
+    // Highlight bounding spheres - highlights will show through other spheres
+    // if (
+    //   sphere.bounding &&
+    //   Scene.outlineBoundingSpheres &&
+    //   Math.abs(ts[0] - ts[1]) < SPHERE_EDGE_THRESHOLD
+    // ) {
+    //   return [ts[0], sphere];
+    // }
 
     if (ts[0] < closestT && ts[0] > minT && ts[0] < maxT) {
-      if (sphere.bounding) { // If intersects bounding sphere
-        [closestT, closestSphere] = ClosestIntersection(origin, direction, minT, closestT, sphere.nestedSpheres, closestT, closestSphere);
-
+      if (sphere.bounding) {
+        if (
+          Scene.outlineBoundingSpheres &&
+          Math.abs(ts[0] - ts[1]) < SPHERE_EDGE_THRESHOLD
+        ) {
+          closestT = ts[0]
+          closestSphere = sphere;
+        } else {
+          // If intersects bounding sphere
+          [closestT, closestSphere] = ClosestIntersection(
+            origin,
+            direction,
+            minT,
+            closestT,
+            sphere.nestedSpheres,
+            closestSphere
+          );
+        }
       } else {
         closestT = ts[0];
         closestSphere = sphere;
@@ -273,14 +297,29 @@ function ClosestIntersection(origin, direction, minT, maxT, spheres, closestT, c
     }
 
     if (ts[1] < closestT && ts[1] > minT && ts[1] < maxT) {
-      if (sphere.bounding) { // If intersects bounding sphere
-        [closestT, closestSphere] = ClosestIntersection(origin, direction, minT, closestT, sphere.nestedSpheres, closestT, closestSphere);
+      if (sphere.bounding) {
+        if (
+          Scene.outlineBoundingSpheres &&
+          Math.abs(ts[0] - ts[1]) < SPHERE_EDGE_THRESHOLD
+        ) {
+          closestT = ts[1]
+          closestSphere = sphere;
+        } else {
+          // If intersects bounding sphere
+          [closestT, closestSphere] = ClosestIntersection(
+            origin,
+            direction,
+            minT,
+            closestT,
+            sphere.nestedSpheres,
+            closestSphere
+          );
+        }
       } else {
         closestT = ts[1];
         closestSphere = sphere;
       }
     }
-
   }
   return [closestT, closestSphere];
 }
@@ -336,7 +375,13 @@ function ComputeLighting(point, normal, vector, specular) {
 }
 
 function TraceRay(origin, direction, minT, maxT, recursionDepth) {
-  let intersection = ClosestIntersection(origin, direction, minT, maxT, Scene.checkSpheres);
+  let intersection = ClosestIntersection(
+    origin,
+    direction,
+    minT,
+    maxT,
+    Scene.checkSpheres
+  );
   let t = intersection[0];
   let object = intersection[1];
   Scene.lastHit = Scene.currentHit;
@@ -346,7 +391,7 @@ function TraceRay(origin, direction, minT, maxT, recursionDepth) {
     return Scene.getBackgroundColor(origin, direction);
   }
 
-  if(object.bounding) {
+  if (object.bounding) {
     // This should only over happen if Scene.outlineBoundingSphere is true
     return Scene.highlightColor;
   }
@@ -443,11 +488,11 @@ function RenderScene() {
 }
 
 function SubsampleRenderScene(ySubsampling) {
-  if ( !ySubsampling || ySubsampling == 1) {
+  if (!ySubsampling || ySubsampling == 1) {
     RenderScene();
   } else {
-    let yOffset = canvas.height % ySubsampling
-    let minY = -canvas.height / 2 + yOffset
+    let yOffset = canvas.height % ySubsampling;
+    let minY = -canvas.height / 2 + yOffset;
     for (let x = -canvas.width / 2; x < canvas.width / 2; x++) {
       for (let y = minY; y < canvas.height / 2; y += ySubsampling) {
         let color = RenderPixel(x, y);
@@ -509,7 +554,7 @@ const Scene = (() => {
   let lights = [
     new Light(Light.ambient, 0.2),
     new Light(Light.directional, 0.3, [0, 1, -1]),
-    new Light(Light.point, 0.5, [-500, -70, -100])
+    new Light(Light.point, 0.5, [-500, -70, -100]),
   ];
 
   let lastHit = null;
@@ -522,7 +567,7 @@ const Scene = (() => {
 
   function generateBoundingSpheres() {
     console.log(this.maxBoundingSphereDiameter);
-    spheres.forEach(sphere => sphere.isBound = false);
+    spheres.forEach((sphere) => (sphere.isBound = false));
     // * Scene now has an array checkSpheres which contains bounding spheres and spheres
     //   the nested spheres and top-level spheres comprise the Scene.spheres array
 
@@ -593,11 +638,13 @@ const Scene = (() => {
         // (if it is, that means that every sphere in boundingSphere would be inside of the other bounding sphere)
         if (
           newBoundingSpheres.every((existingBoundingSphere) => {
-            !(Length(
-              Subtract(existingBoundingSphere.center, boundingSphere.center)
-            ) +
-              boundingSphere.radius >
-              existingBoundingSphere.radius);
+            !(
+              Length(
+                Subtract(existingBoundingSphere.center, boundingSphere.center)
+              ) +
+                boundingSphere.radius >
+              existingBoundingSphere.radius
+            );
           })
         ) {
           newBoundingSpheres.push(boundingSphere);
@@ -618,9 +665,11 @@ const Scene = (() => {
     // Trying to make it so I can determine the background color
     // based on the vector.
     // Maybe I can try making a gradient or something?
-    let color = [(Math.cos(direction[1]) + 0.5) * 125,
-                 (Math.sin(direction[0]) + 0.5) * 125,
-                 (Math.cos(direction[1]) + 0.33) * 125];
+    let color = [
+      (Math.cos(direction[1]) + 0.5) * 125,
+      (Math.sin(direction[0]) + 0.5) * 125,
+      (Math.cos(direction[1]) + 0.33) * 125,
+    ];
     return color;
   }
 
@@ -654,121 +703,124 @@ const ui = (() => {
   const xRotateInput = document.getElementById("x-rotate");
   const yRotateInput = document.getElementById("y-rotate");
   const zRotateInput = document.getElementById("z-rotate");
-  const maxBoundingDiameterInput = document.getElementById("bounding-sphere-diameter");
-  const highlightBoundingSphereCheckbox = document.getElementById("bounding-sphere-highlight");
-  
+  const maxBoundingDiameterInput = document.getElementById(
+    "bounding-sphere-diameter"
+  );
+  const highlightBoundingSphereCheckbox = document.getElementById(
+    "bounding-sphere-highlight"
+  );
+
   function canvasClicked(event) {
     /*
     This function will generate a sphere with random size, color, and reflective properties
     at a location where it appears centered on the pixel that was clicked from the camera's perspective.
     */
-   let x = event.offsetX - canvas.width / 2;
-   let y = canvas.height / 2 - event.offsetY;
-   let position = CanvasToViewport([x, y]);
-   position = Add(
-     Scene.cameraPosition,
-     RotateVector(
-       Scene.rotation,
-       ScalarMultiply(position, Math.random() * 100 + 10)
-       )
-       );
-       let randomColor = [
-         Math.random() * 255,
-         Math.random() * 255,
-         Math.random() * 255,
-        ];
-        let randomSphere = new Sphere(
-          position,
-          Math.random() * 5 + 1,
-          randomColor,
-          Math.random() * 1000,
-          Math.random()
-          );
-          Scene.spheres.push(randomSphere);
-          Scene.generateBoundingSpheres();
-          console.log(Scene.outlineBoundingSpheres);
-          UpdateRender();
-        }
-        
+    let x = event.offsetX - canvas.width / 2;
+    let y = canvas.height / 2 - event.offsetY;
+    let position = CanvasToViewport([x, y]);
+    position = Add(
+      Scene.cameraPosition,
+      RotateVector(
+        Scene.rotation,
+        ScalarMultiply(position, Math.random() * 100 + 10)
+      )
+    );
+    let randomColor = [
+      Math.random() * 255,
+      Math.random() * 255,
+      Math.random() * 255,
+    ];
+    let randomSphere = new Sphere(
+      position,
+      Math.random() * 5 + 1,
+      randomColor,
+      Math.random() * 1000,
+      Math.random()
+    );
+    Scene.spheres.push(randomSphere);
+    Scene.generateBoundingSpheres();
+    console.log(Scene.outlineBoundingSpheres);
+    UpdateRender();
+  }
+
   function UpdateCameraRotation() {
     const xDegrees = xRotateInput.value;
     const yDegrees = yRotateInput.value;
     const zDegrees = zRotateInput.value;
     Scene.rotation = RotationMatrix(xDegrees, yDegrees, zDegrees);
   }
-  
+
   function UpdateOptimizationSettings() {
     const subsampling = parseInt(subsampleInput.value);
     const maxBoundingSphereDiameter = parseInt(maxBoundingDiameterInput.value);
-    
+
     if (subsampling) {
       Scene.subsampling = subsampling;
     }
-    
+
     if (maxBoundingSphereDiameter) {
       Scene.maxBoundingSphereDiameter = maxBoundingSphereDiameter;
       Scene.generateBoundingSpheres();
     }
-    Scene.outlineBoundingSpheres = highlightBoundingSphereCheckbox.checked
+    Scene.outlineBoundingSpheres = highlightBoundingSphereCheckbox.checked;
   }
-  
+
   function UpdateSceneAndRender(event) {
     UpdateCameraRotation();
     UpdateOptimizationSettings();
     UpdateRender();
   }
-  
+
   canvas.addEventListener("click", canvasClicked);
-  
+
   document
-  .getElementById("render")
-  .addEventListener("click", UpdateSceneAndRender);
+    .getElementById("render")
+    .addEventListener("click", UpdateSceneAndRender);
 })();
 
-
-function handleKeyDown(event){
+function handleKeyDown(event) {
   if (event.target.tagName == "INPUT") {
     return;
   }
   const key = event.code;
   let update = false;
-  if(key == "KeyW"){
+  if (key == "KeyW") {
     ++Scene.cameraPosition[1];
     update = true;
   }
-  if(key == "KeyA"){
+  if (key == "KeyA") {
     --Scene.cameraPosition[0];
     update = true;
   }
-  if(key == "KeyS"){
+  if (key == "KeyS") {
     --Scene.cameraPosition[1];
     update = true;
   }
-  if(key == "KeyD"){
+  if (key == "KeyD") {
     ++Scene.cameraPosition[0];
     update = true;
   }
-  if(key == "ArrowUp"){
+  if (key == "ArrowUp") {
     ++Scene.projectionZ;
     update = true;
   }
-  if(key == "ArrowDown"){
+  if (key == "ArrowDown") {
     --Scene.projectionZ;
     update = true;
   }
-  if(key == "KeyR"){
+  if (key == "KeyR") {
     ++Scene.reflectionLimit;
     update = true;
   }
-  if(key == "KeyT"){
+  if (key == "KeyT") {
     --Scene.reflectionLimit;
     update = true;
   }
-  if(update) UpdateRender();
+  if (update) UpdateRender();
 }
 
 function zoom(event) {
-  if(event.deltaY < 0) {
+  if (event.deltaY < 0) {
     ++Scene.cameraPosition[2];
   } else {
     --Scene.cameraPosition[2];
@@ -778,8 +830,7 @@ function zoom(event) {
 
 document.addEventListener("keydown", handleKeyDown);
 canvas.addEventListener("wheel", zoom);
-        
-        // Currently testing this!
-Scene.generateBoundingSpheres(20);   
-UpdateRender();
 
+// Currently testing this!
+Scene.generateBoundingSpheres(20);
+UpdateRender();
