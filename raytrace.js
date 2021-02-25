@@ -41,6 +41,14 @@ function Midpoint(pointArray) {
 }
 
 // Vector on Vector action
+function CrossProduct(v1, v2) {
+  return [
+    (v1[1] * v2[2] - v1[2] * v2[1]),
+    (v1[2] * v2[0] - v1[0] * v2[2]),
+    (v1[0] * v2[1] - v1[1] * v2[0])
+  ];
+}
+
 function DotProduct(v1, v2) {
   return v1[0] * v2[0] + v1[1] * v2[1] + v1[2] * v2[2];
 }
@@ -156,6 +164,15 @@ function BoundingSphere(center, radius, nestedSpheres) {
     nestedSpheres,
     bounding: true,
   };
+}
+
+function Triangle(a, b, c, color) {
+  this.a = a;
+  this.b = b;
+  this.c = c;
+  this.color = color;
+  this.normal = CrossProduct(Subtract(a, c), Subtract(b, c));
+  this.plane = DotProduct(this.normal, this.a);
 }
 
 function Light(type, intensity, position) {
@@ -495,6 +512,7 @@ const Scene = (() => {
   let backgroundColor = [8, 8, 16];
   let lastShadow = false;
   let subsampling = 0;
+  let maxBoundingSphereDiameter = 10;
   let outlineBoundingSpheres = false;
   let highlightColor = [255, 255, 255];
 
@@ -514,6 +532,10 @@ const Scene = (() => {
     new Sphere([0, 6, 10], 1, [255, 255, 0], -1, 1),
   ];
 
+  let triangles = [
+    new Triangle([3, 0, 5], [0, 4, 5], [0, 0, 5], [255, 255, 255]),
+  ];
+
   let checkSpheres = [];
 
   let lights = [
@@ -530,7 +552,8 @@ const Scene = (() => {
     previousPointBlockedBy = lights.map((light) => null);
   }
 
-  function generateBoundingSpheres(maxBoundingSphereDiameter) {
+  function generateBoundingSpheres() {
+    console.log(this.maxBoundingSphereDiameter);
     spheres.forEach(sphere => sphere.isBound = false);
     // * Scene now has an array checkSpheres which contains bounding spheres and spheres
     //   the nested spheres and top-level spheres comprise the Scene.spheres array
@@ -579,7 +602,7 @@ const Scene = (() => {
             Length(Subtract(sphereA.center, sphereB.center)) +
             sphereA.radius +
             sphereB.radius;
-          if (distance > maxBoundingSphereDiameter) {
+          if (distance > this.maxBoundingSphereDiameter) {
             fitsInGroup = false;
           } else {
             maxSphereDistance = Math.max(distance, maxSphereDistance);
@@ -602,11 +625,11 @@ const Scene = (() => {
         // (if it is, that means that every sphere in boundingSphere would be inside of the other bounding sphere)
         if (
           newBoundingSpheres.every((existingBoundingSphere) => {
-            Length(
+            !(Length(
               Subtract(existingBoundingSphere.center, boundingSphere.center)
             ) +
-              boundingSphere.radius <=
-              existingBoundingSphere.radius;
+              boundingSphere.radius >
+              existingBoundingSphere.radius);
           })
         ) {
           newBoundingSpheres.push(boundingSphere);
@@ -633,12 +656,17 @@ const Scene = (() => {
     return color;
   }
 
+  function getObjects () {
+    return this.checkSpheres.concat(this.triangles);
+  }
+
   return {
     cameraPosition,
     rotation,
     viewportSize,
     projectionZ,
     spheres,
+    triangles,
     checkSpheres,
     generateBoundingSpheres,
     lights,
@@ -649,8 +677,10 @@ const Scene = (() => {
     previousPointBlockedBy,
     resetBlockerArray,
     subsampling,
+    maxBoundingSphereDiameter,
     outlineBoundingSpheres,
     highlightColor,
+    getObjects,
   };
 })();
 
@@ -692,7 +722,8 @@ const ui = (() => {
           Math.random()
           );
           Scene.spheres.push(randomSphere);
-          Scene.generateBoundingSpheres(100);
+          Scene.generateBoundingSpheres();
+          console.log(Scene.outlineBoundingSpheres);
           UpdateRender();
         }
         
@@ -712,7 +743,8 @@ const ui = (() => {
     }
     
     if (maxBoundingSphereDiameter) {
-      Scene.generateBoundingSpheres(maxBoundingSphereDiameter);
+      Scene.maxBoundingSphereDiameter = maxBoundingSphereDiameter;
+      Scene.generateBoundingSpheres();
     }
     Scene.outlineBoundingSpheres = highlightBoundingSphereCheckbox.checked
   }
@@ -729,6 +761,57 @@ const ui = (() => {
   .getElementById("render")
   .addEventListener("click", UpdateSceneAndRender);
 })();
+
+
+function handleKeyDown(event){
+  const key = event.code;
+  let update = false;
+  if(key == "KeyW"){
+    ++Scene.cameraPosition[1];
+    update = true;
+  }
+  if(key == "KeyA"){
+    --Scene.cameraPosition[0];
+    update = true;
+  }
+  if(key == "KeyS"){
+    --Scene.cameraPosition[1];
+    update = true;
+  }
+  if(key == "KeyD"){
+    ++Scene.cameraPosition[0];
+    update = true;
+  }
+  if(key == "ArrowUp"){
+    ++Scene.projectionZ;
+    update = true;
+  }
+  if(key == "ArrowDown"){
+    --Scene.projectionZ;
+    update = true;
+  }
+  if(key == "KeyR"){
+    ++Scene.reflectionLimit;
+    update = true;
+  }
+  if(key == "KeyT"){
+    --Scene.reflectionLimit;
+    update = true;
+  }
+  if(update) UpdateRender();
+}
+
+function zoom(event) {
+  if(event.deltaY < 0) {
+    ++Scene.cameraPosition[2];
+  } else {
+    --Scene.cameraPosition[2];
+  }
+  UpdateRender();
+}
+
+document.addEventListener("keydown", handleKeyDown);
+document.addEventListener("wheel", zoom);
         
         // Currently testing this!
 Scene.generateBoundingSpheres(20);   

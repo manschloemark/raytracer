@@ -6,32 +6,49 @@
         <link rel="stylesheet" href="./style.css" />
     </head>
     <body>
-        <canvas id="canvas" width="720" height="480">
-
-        </canvas>
-        <div id="control-container">
-        <div class="controls" id="optimization">
-            <h2>Optimization</h2>
-            <label for="subsamples">Subsampling:</label>
-            <input type="number" id="subsamples" name="subsamples" min="1">
-            <label for="bounding-sphere-diameter">Max Bounding Sphere Diameter:</label>
-            <input type="number" id="bounding-sphere-diameter" name="bounding-sphere-diameter" min="0">
-            <div>
-                <input type="checkbox" name="bounding-sphere-highlight" id="bounding-sphere-highlight">
-                <label for="bounding-sphere-highlight">Outline Bounding Spheres</label>
+        <div id="canvas-container">
+            <canvas id="canvas" width="720" height="480">
+            </canvas>
+            <div id="canvas-settings">
+                <label for="canvas-width">Width:</label>
+                <input id="canvas-width" name="canvas-width" type="number" min="540">
+                <label for="canvas-height">Height:</label>
+                <input id="canvas-height" name="canvas-height" type="number" min="540">
             </div>
         </div>
-        <div id="camera" class="controls">
-            <h2>Camera</h2>
-            <label for="x-rotate">X Rotation:</label>
-            <input type="number" id="x-rotate" name="x-rotate">
-            <label for="y-rotate">Y Rotation:</label>
-            <input type="number" id="y-rotate" name="y-rotate">
-            <label for="z-rotate">Z Rotation:</label>
-            <input type="number" id="z-rotate" name="z-rotate">
+        <div id="control-container">
+            <div class="controls" id="optimization">
+                <h2>Optimization</h2>
+                <label for="subsamples">Subsampling:</label>
+                <input type="number" id="subsamples" name="subsamples" min="1">
+                <label for="bounding-sphere-diameter">Max Bounding Sphere Diameter:</label>
+                <input type="number" id="bounding-sphere-diameter" name="bounding-sphere-diameter" min="0">
+                <div>
+                    <input type="checkbox" name="bounding-sphere-highlight" id="bounding-sphere-highlight">
+                    <label for="bounding-sphere-highlight">Outline Bounding Spheres</label>
+                </div>
+            </div>
+            <div id="camera" class="controls">
+                <h2>Camera</h2>
+                <label for="x-rotate">X Rotation:</label>
+                <input type="number" id="x-rotate" name="x-rotate">
+                <label for="y-rotate">Y Rotation:</label>
+                <input type="number" id="y-rotate" name="y-rotate">
+                <label for="z-rotate">Z Rotation:</label>
+                <input type="number" id="z-rotate" name="z-rotate">
+            </div>
+            <div id="lighting" class="controls">
+                <h2>Lighting</h2>
+                <label for="reflection-limit">Reflection Limit:</label>
+                <input type="number" id="reflection-limit" name="reflection-limit" min="0">
+            </div>
+            <button id="render" type="button">Render</button>
         </div>
-        <button id="render" type="button">Render!</button>
-    </div>
+        <div id="scene-info">
+            <div id="sphere-info">
+
+            </div>
+        </div>
     <!-- <div id="note-container">
         <h3>Notes:</h3>
         <dl>

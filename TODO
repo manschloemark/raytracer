@@ -2,6 +2,7 @@ Homebrew RayTracer
 
 Graphics Code:
   ☐ Clean up BoundingSphere code
+    ☐ Make 'updateBoundingSpheres' instead when you already have some spheres.
   ✔ Improve subsampling - can I generalize it to be N pixel subsampling? @done(21-02-22 19:22)
     ✔ Impemented n-pixel subsampling along the y-axis. @done(21-02-22 19:23)
     ☐ Maybe I can implement it along the x-axis as well?
@@ -13,14 +14,27 @@ Graphics Code:
     ☐ Render Cubes
   ✔ Add a function / something that generates a background color instead of using @started(21-02-23 21:29) @done(21-02-23 21:44) @lasted(15m24s)
     - a static hard-coded one.
-    ☐ Make this cooler!
+    ☐ Play around with this kind of stuff more
 
 U.I. Code:
-  ☐ Re-implement key-binds to move the camera
-    ☐ WASD
-    ☐ Z-Axis movement
-    ☐ Zoom
+  ☐ Re-implement key-binds to move the camera @started(21-02-24 11:43)
+    ✔ WASD @done(21-02-24 11:43)
+    ✔ Z-Axis movement @done(21-02-24 11:43)
+    ✔ Zoom @done(21-02-24 11:43)
+    - Just copy-pasted them for now. Maybe I'll clean it up later.
   ☐ Make DOM module that takes care of all ui.
     ☐ Keeps inputs up to date
     ☐ Has extra goodies like render time
     ☐ Encapsulates all DOM code to keep things organized.
+    ☐ Improve inputs so they always show current values and let you change them
+  ☐ I'm adding a bunch of dom elements for controls but I probably won't be able to implement them before work.
+    ☐ Canvas width and height
+    ☐ Scene info
+      ☐ Div containing spheres and all their info
+        ☐ Maybe make a factory so I can have neat widgets for every sphere
+    ☐ Lighting div
+      ☐ Reflection Limit
+      ☐ Div containing all of the lights, just like the spheres.
+    ☐ Camera div
+      ☐ Add camera position data to this div?
+  ☐ Maybe this is a good opportunity to practice using React? It seems like it fits nicely.
