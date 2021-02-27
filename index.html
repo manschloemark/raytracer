@@ -6,7 +6,18 @@
         <link rel="stylesheet" href="./style.css" />
     </head>
     <body>
+        <div id="help">
+            <h2>Camera Movement</h2>
+            <p>W/S = +/- Y axis</p>
+            <p>D/A = +/- X axis</p>
+            <p>Scroll Up / Down = +/- Z axis</p>
+            <h2>Coordinate Space</h2>
+            <p>X is left/right</p>
+            <p>Y is up/down</p>
+            <p>Z is in/out</p>
+        </div>
         <div id="canvas-container">
+            <button id="render" type="button">Render</button>
             <canvas id="canvas" width="720" height="480">
             </canvas>
             <div id="canvas-settings">
@@ -30,6 +41,12 @@
             </div>
             <div id="camera" class="controls">
                 <h2>Camera</h2>
+                <label for="x-position">X Position:</label>
+                <input type="number" id="x-position" name="x-position">
+                <label for="y-position">Y Position:</label>
+                <input type="number" id="y-position" name="y-position">
+                <label for="x-position">Z Position:</label>
+                <input type="number" id="z-position" name="z-position">
                 <label for="x-rotate">X Rotation:</label>
                 <input type="number" id="x-rotate" name="x-rotate">
                 <label for="y-rotate">Y Rotation:</label>
@@ -42,7 +59,6 @@
                 <label for="reflection-limit">Reflection Limit:</label>
                 <input type="number" id="reflection-limit" name="reflection-limit" min="0">
             </div>
-            <button id="render" type="button">Render</button>
         </div>
         <div id="scene-info">
             <div id="sphere-info">

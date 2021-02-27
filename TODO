@@ -22,19 +22,19 @@ U.I. Code:
     ✔ Z-Axis movement @done(21-02-24 11:43)
     ✔ Zoom @done(21-02-24 11:43)
     - Just copy-pasted them for now. Maybe I'll clean it up later.
-  ☐ Make DOM module that takes care of all ui.
-    ☐ Keeps inputs up to date
+  ✔ Make DOM module that takes care of all ui. @done(21-02-26 21:07)
+    ✔ Keeps inputs up to date @done(21-02-26 21:07)
     ☐ Has extra goodies like render time
     ☐ Encapsulates all DOM code to keep things organized.
-    ☐ Improve inputs so they always show current values and let you change them
+    ✔ Improve inputs so they always show current values and let you change them @done(21-02-26 21:07)
   ☐ I'm adding a bunch of dom elements for controls but I probably won't be able to implement them before work.
-    ☐ Canvas width and height
+    ✔ Canvas width and height @done(21-02-26 21:07)
     ☐ Scene info
       ☐ Div containing spheres and all their info
         ☐ Maybe make a factory so I can have neat widgets for every sphere
     ☐ Lighting div
-      ☐ Reflection Limit
+      ✔ Reflection Limit @done(21-02-26 21:07)
       ☐ Div containing all of the lights, just like the spheres.
-    ☐ Camera div
-      ☐ Add camera position data to this div?
+    ✔ Camera div @done(21-02-26 21:07)
+      ✔ Add camera position data to this div? @done(21-02-26 21:07)
   ☐ Maybe this is a good opportunity to practice using React? It seems like it fits nicely.
