@@ -1,5 +1,8 @@
 Homebrew RayTracer
 
+Bugs:
+  ☐ Subsampling does not render the first part of the canvas properly.
+
 Graphics Code:
   ☐ Clean up BoundingSphere code
     ☐ Make 'updateBoundingSpheres' instead when you already have some spheres.
