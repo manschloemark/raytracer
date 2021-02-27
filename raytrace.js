@@ -514,8 +514,6 @@ function SubsampleRenderScene(ySubsampling) {
   } else {
     let minY = -canvas.height / 2;
     for (let x = -canvas.width / 2; x < canvas.width / 2; x++) {
-      // If the subsampling does not evenly divide the canvas
-      // Subsample the first part so that it evens it out
       let y = minY;
       let prevY = null;
       while (y < canvas.height / 2) {
@@ -546,7 +544,6 @@ function SubsampleRenderScene(ySubsampling) {
           }
         }
       }
-      // Once out of the loop, check if any pixels are not rendered
       Scene.resetBlockerArray();
     }
   }
