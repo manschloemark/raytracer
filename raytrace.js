@@ -141,13 +141,17 @@ function BrightenColor(color, i) {
 }
 
 // Scene objects
-function Sphere(center, radius, color, specular, reflection) {
+function Sphere(center, radius, color, specular, reflection, opacity) {
+  if (opacity === null) {
+    opacity = 1;
+  }
   return {
     center,
     radius,
     color,
     specular,
     reflection,
+    opacity,
     bounding: false,
     isBound: false,
   };
@@ -408,6 +412,16 @@ function TraceRay(origin, direction, minT, maxT, recursionDepth) {
   );
   let localColor = BrightenColor(object.color, lighting);
 
+  if(object.opacity < 1) {
+    let transparentColor = TraceRay(point, direction, EPSILON, maxT, recursionDepth - 1);
+
+    localColor = Add(
+      BrightenColor(localColor, object.opacity),
+      BrightenColor(transparentColor, 1 - object.opacity)
+    );
+  }
+
+
   if (object.reflective > 0 && recursionDepth > 0) {
     let reflection = ReflectRay(negativeDirection, normal);
     let reflectionColor = TraceRay(
@@ -426,17 +440,17 @@ function TraceRay(origin, direction, minT, maxT, recursionDepth) {
   return localColor;
 }
 
-// canvas and pixel placement
+// canvas and pixel
+const bytesPerPixel = 4;
 const canvas = document.getElementById("canvas");
 const canvasContext = canvas.getContext("2d");
-const pixelBuffer = canvasContext.getImageData(
+let pixelBuffer = canvasContext.getImageData(
   0,
   0,
   canvas.width,
   canvas.height
 );
-const bytesPerPixel = 4;
-const canvasPitch = pixelBuffer.width * bytesPerPixel; // Bytes per row
+let canvasPitch = pixelBuffer.width * bytesPerPixel; // Bytes per row
 
 function PutPixel(x, y, color) {
   x += canvas.width / 2;
@@ -466,7 +480,7 @@ function CanvasToViewport(xy) {
 
 function RenderPixel(x, y) {
   let direction = CanvasToViewport([x, y]);
-  direction = RotateVector(Scene.rotation, direction);
+  direction = RotateVector(Scene.rotationMatrix, direction);
   let color = TraceRay(
     Scene.cameraPosition,
     direction,
@@ -525,7 +539,8 @@ const Scene = (() => {
   let viewportSize = 1;
   let reflectionLimit = 4;
   let projectionZ = 1;
-  let rotation = RotationMatrix(0, 0, 0);
+  let rotation = [0, 0, 0];
+  let rotationMatrix = RotationMatrix(rotation[0], rotation[1], rotation[2]);
   let backgroundColor = [8, 8, 16];
   let lastShadow = false;
   let subsampling = 0;
@@ -542,12 +557,18 @@ const Scene = (() => {
   // ];
 
   // Debugging for specific goals
+  // let spheres = [
+  //   new Sphere([-2, 0, 5], 1, [255, 0, 0], -1, 1),
+  //   new Sphere([0, 0, 5], 1, [0, 0, 255], -1, 1),
+  //   new Sphere([2, 0, 5], 1, [0, 255, 0], -1, 1),
+  //   new Sphere([0, 6, 10], 1, [255, 255, 0], -1, 1),
+  // ];
+
+  // Testing transparency
   let spheres = [
-    new Sphere([-2, 0, 5], 1, [255, 0, 0], -1, 1),
-    new Sphere([0, 0, 5], 1, [0, 0, 255], -1, 1),
-    new Sphere([2, 0, 5], 1, [0, 255, 0], -1, 1),
-    new Sphere([0, 6, 10], 1, [255, 255, 0], -1, 1),
-  ];
+    new Sphere([0, 0, 5], 1, [255, 255, 255], -1, 0, 0.2),
+    new Sphere([0, 0, 10], 2, [0, 255, 0], -1, 1, 1),
+  ]
 
   let checkSpheres = [];
 
@@ -676,6 +697,7 @@ const Scene = (() => {
   return {
     cameraPosition,
     rotation,
+    rotationMatrix,
     viewportSize,
     projectionZ,
     spheres,
@@ -699,16 +721,27 @@ const Scene = (() => {
 
 // module for ui in the HTML
 const ui = (() => {
+  // Canvas Settings
+  const canvasWidth = document.getElementById("canvas-width");
+  const canvasHeight = document.getElementById("canvas-height");
+  // Optimizations
   const subsampleInput = document.getElementById("subsamples");
-  const xRotateInput = document.getElementById("x-rotate");
-  const yRotateInput = document.getElementById("y-rotate");
-  const zRotateInput = document.getElementById("z-rotate");
   const maxBoundingDiameterInput = document.getElementById(
     "bounding-sphere-diameter"
   );
   const highlightBoundingSphereCheckbox = document.getElementById(
     "bounding-sphere-highlight"
   );
+  // Camera
+  const xInput = document.getElementById("x-position");
+  const yInput = document.getElementById("y-position");
+  const zInput = document.getElementById("z-position");
+  const xRotateInput = document.getElementById("x-rotate");
+  const yRotateInput = document.getElementById("y-rotate");
+  const zRotateInput = document.getElementById("z-rotate");
+  // Lighting
+  const reflectionLimitInput = document.getElementById("reflection-limit");
+  // Scene
 
   function canvasClicked(event) {
     /*
@@ -718,13 +751,15 @@ const ui = (() => {
     let x = event.offsetX - canvas.width / 2;
     let y = canvas.height / 2 - event.offsetY;
     let position = CanvasToViewport([x, y]);
+    console.log(position);
     position = Add(
       Scene.cameraPosition,
       RotateVector(
-        Scene.rotation,
+        Scene.rotationMatrix,
         ScalarMultiply(position, Math.random() * 100 + 10)
-      )
-    );
+        )
+        );
+        console.log(position);
     let randomColor = [
       Math.random() * 255,
       Math.random() * 255,
@@ -735,6 +770,7 @@ const ui = (() => {
       Math.random() * 5 + 1,
       randomColor,
       Math.random() * 1000,
+      Math.random(),
       Math.random()
     );
     Scene.spheres.push(randomSphere);
@@ -743,14 +779,23 @@ const ui = (() => {
     UpdateRender();
   }
 
-  function UpdateCameraRotation() {
-    const xDegrees = xRotateInput.value;
-    const yDegrees = yRotateInput.value;
-    const zDegrees = zRotateInput.value;
-    Scene.rotation = RotationMatrix(xDegrees, yDegrees, zDegrees);
+  function GetCameraPosition() {
+    const x = parseInt(xInput.value);
+    const y = parseInt(yInput.value);
+    const z = parseInt(zInput.value);
+
+    Scene.cameraPosition = [x, y, z];
   }
 
-  function UpdateOptimizationSettings() {
+  function GetCameraRotation() {
+    const xDegrees = parseInt(xRotateInput.value);
+    const yDegrees = parseInt(yRotateInput.value);
+    const zDegrees = parseInt(zRotateInput.value);
+    Scene.rotation = [xDegrees, yDegrees, zDegrees]; // Just in case I need to sync the UI to the Scene
+    Scene.rotationMatrix = RotationMatrix(xDegrees, yDegrees, zDegrees);
+  }
+
+  function GetOptimizationSettings() {
     const subsampling = parseInt(subsampleInput.value);
     const maxBoundingSphereDiameter = parseInt(maxBoundingDiameterInput.value);
 
@@ -765,9 +810,51 @@ const ui = (() => {
     Scene.outlineBoundingSpheres = highlightBoundingSphereCheckbox.checked;
   }
 
+  function GetReflectionLimit() {
+    const reflectionLimit = parseInt(reflectionLimitInput.value);
+    Scene.reflectionLimit = reflectionLimit;
+  }
+
+  function GetCanvasDimensions() {
+    const width = parseInt(canvasWidth.value);
+    const height = parseInt(canvasHeight.value);
+    canvas.height = height;
+    canvas.width = width;
+    pixelBuffer = canvasContext.getImageData(
+      0,
+      0,
+      canvas.width,
+      canvas.height
+    );
+    canvasPitch = pixelBuffer.width * bytesPerPixel; // Bytes per row
+  }
+
+  function SyncWithScene() {
+    // Go through each element and set the values to value from Scene.
+    canvasWidth.value = canvas.width;
+    canvasHeight.value = canvas.height;
+
+    subsampleInput.value = Scene.subsampling;
+    maxBoundingDiameterInput.value = Scene.maxBoundingSphereDiameter;
+    highlightBoundingSphereCheckbox.checked = Scene.outlineBoundingSpheres;
+
+    xInput.value = Scene.cameraPosition[0];
+    yInput.value = Scene.cameraPosition[1];
+    zInput.value = Scene.cameraPosition[2];
+
+    xRotateInput.value = Scene.rotation[0];
+    yRotateInput.value = Scene.rotation[1];
+    zRotateInput.value = Scene.rotation[2];
+
+    reflectionLimitInput.value = Scene.reflectionLimit;
+  }
+  
   function UpdateSceneAndRender(event) {
-    UpdateCameraRotation();
-    UpdateOptimizationSettings();
+    GetCameraPosition();
+    GetCameraRotation();
+    GetOptimizationSettings();
+    GetReflectionLimit();
+    GetCanvasDimensions();
     UpdateRender();
   }
 
@@ -776,6 +863,10 @@ const ui = (() => {
   document
     .getElementById("render")
     .addEventListener("click", UpdateSceneAndRender);
+
+    return {
+      SyncWithScene,
+    };
 })();
 
 function handleKeyDown(event) {
@@ -834,3 +925,5 @@ canvas.addEventListener("wheel", zoom);
 // Currently testing this!
 Scene.generateBoundingSpheres(20);
 UpdateRender();
+
+ui.SyncWithScene();
