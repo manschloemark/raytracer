@@ -388,10 +388,17 @@ function TraceRay(origin, direction, minT, maxT, recursionDepth) {
   );
   let t = intersection[0];
   let object = intersection[1];
-  Scene.lastHit = Scene.currentHit;
-  Scene.currentHit = object;
+  if(recursionDepth === Scene.reflectionLimit) {
+    Scene.lastHit = Scene.currentHit;
+    Scene.currentHit = object;
+  } else if (object !== null) {
+    // Only overwrite the last hit on a recursive call when
+    // you actually hit an object
+    Scene.lastHit = Scene.currentHit;
+    Scene.currentHit = object;
+  }
 
-  if (object == null) {
+  if (object === null) {
     return Scene.getBackgroundColor(origin, direction);
   }
 
@@ -412,7 +419,7 @@ function TraceRay(origin, direction, minT, maxT, recursionDepth) {
   );
   let localColor = BrightenColor(object.color, lighting);
 
-  if(object.opacity < 1) {
+  if(object.opacity < 1 && recursionDepth > 0) {
     let transparentColor = TraceRay(point, direction, EPSILON, maxT, recursionDepth - 1);
 
     localColor = Add(
@@ -502,29 +509,89 @@ function RenderScene() {
 }
 
 function SubsampleRenderScene(ySubsampling) {
-  if (!ySubsampling || ySubsampling == 1) {
+  if (ySubsampling === 0) {
     RenderScene();
   } else {
-    let yOffset = canvas.height % ySubsampling;
-    let minY = -canvas.height / 2 + yOffset;
+    let minY = -canvas.height / 2;
     for (let x = -canvas.width / 2; x < canvas.width / 2; x++) {
-      for (let y = minY; y < canvas.height / 2; y += ySubsampling) {
+      // If the subsampling does not evenly divide the canvas
+      // Subsample the first part so that it evens it out
+      let y = minY;
+      let prevY = null;
+      while (y < canvas.height / 2) {
         let color = RenderPixel(x, y);
         PutPixel(x, y, color);
-        if (y > minY && Scene.lastHit !== Scene.currentHit) {
-          for (let k = ySubsampling - 1; k > 0; k--) {
-            PutPixel(x, y - k, RenderPixel(x, y - k));
+        if (prevY !== null && Scene.lastHit !== Scene.currentHit) {
+          for (let k = prevY + 1; k < y; k++) {
+            PutPixel(x, k, RenderPixel(x, k));
           }
         } else {
-          for (let k = ySubsampling - 1; k > 0; k--) {
-            PutPixel(x, y - k, color);
+          for (let k = prevY + 1; k < y; k++) {
+            PutPixel(x, k, color);
+          }
+        }
+        prevY = y;
+        y += (1 + ySubsampling);
+      }
+      if (prevY !== (canvas.height / 2 - 1)) {
+        y = (canvas.height / 2 - 1);
+        color = RenderPixel(x, y);
+        if (Scene.lastHit !== Scene.currentHit) {
+          for (let k = prevY + 1; k < y; k++) {
+            PutPixel(x, k, RenderPixel(x, k));
+          }
+        } else {
+          for (let k = prevY + 1; k < y; k++) {
+            PutPixel(x, k, color);
           }
         }
       }
+      // Once out of the loop, check if any pixels are not rendered
       Scene.resetBlockerArray();
     }
   }
 }
+// function SubsampleRenderScene(ySubsampling) {
+//   if (!ySubsampling || ySubsampling == 1) {
+//     RenderScene();
+//   } else {
+//     let yOffset = canvas.height % ySubsampling;
+//     let minY = -canvas.height / 2 + yOffset;
+//     for (let x = -canvas.width / 2; x < canvas.width / 2; x++) {
+//        // If the subsampling does not evenly divide the canvas
+//        // Subsample the first part so that it evens it out
+//       if (yOffset !== 0) {
+//         let color = RenderPixel(x, 0);
+//         PutPixel(x, 0, color);
+//         color = RenderPixel(x, minY);
+//         PutPixel(x, minY, color);
+//         if(Scene.lastHit != Scene.currentHit) {
+//           for (let k = 1; k < minY; k++) {
+//             PutPixel(x, k, RenderPixel(x, k));
+//           }
+//         } else {
+//           for(let k = 1; k < minY; k++) {
+//             PutPixel(x, k, color);
+//           }
+//         }
+//       }
+//       for (let y = minY; y < canvas.height / 2; y += ySubsampling) {
+//         let color = RenderPixel(x, y);
+//         PutPixel(x, y, color);
+//         if (y > minY && Scene.lastHit !== Scene.currentHit) {
+//           for (let k = ySubsampling - 1; k > 0; k--) {
+//             PutPixel(x, y - k, RenderPixel(x, y - k));
+//           }
+//         } else {
+//           for (let k = ySubsampling - 1; k > 0; k--) {
+//             PutPixel(x, y - k, color);
+//           }
+//         }
+//       }
+//       Scene.resetBlockerArray();
+//     }
+//   }
+// }
 
 function UpdateRender() {
   const start = performance.now();
