@@ -503,90 +503,49 @@ function RenderScene() {
 }
 
 function SubsampleRenderScene(ySubsampling) {
-  if (ySubsampling === 0) {
-    RenderScene();
-  } else {
-    let minY = -canvas.height / 2;
-    for (let x = -canvas.width / 2; x < canvas.width / 2; x++) {
-      let y = minY;
-      let prevY = null;
-      while (y < canvas.height / 2) {
-        let color = RenderPixel(x, y);
-        PutPixel(x, y, color);
-        if (prevY !== null && Scene.lastHit !== Scene.currentHit) {
-          for (let k = prevY + 1; k < y; k++) {
-            PutPixel(x, k, RenderPixel(x, k));
-          }
-        } else {
-          for (let k = prevY + 1; k < y; k++) {
-            PutPixel(x, k, color);
-          }
+  let minY = -canvas.height / 2;
+  for (let x = -canvas.width / 2; x < canvas.width / 2; x++) {
+    let y = minY;
+    let prevY = null;
+    while (y < canvas.height / 2) {
+      let color = RenderPixel(x, y);
+      PutPixel(x, y, color);
+      if (prevY !== null && Scene.lastHit !== Scene.currentHit) {
+        for (let k = prevY + 1; k < y; k++) {
+          PutPixel(x, k, RenderPixel(x, k));
         }
-        prevY = y;
-        y += (1 + ySubsampling);
-      }
-      if (prevY !== (canvas.height / 2 - 1)) {
-        y = (canvas.height / 2 - 1);
-        color = RenderPixel(x, y);
-        if (Scene.lastHit !== Scene.currentHit) {
-          for (let k = prevY + 1; k < y; k++) {
-            PutPixel(x, k, RenderPixel(x, k));
-          }
-        } else {
-          for (let k = prevY + 1; k < y; k++) {
-            PutPixel(x, k, color);
-          }
+      } else {
+        for (let k = prevY + 1; k < y; k++) {
+          PutPixel(x, k, color);
         }
       }
-      Scene.resetBlockerArray();
+      prevY = y;
+      y += (1 + ySubsampling);
     }
+    if (prevY !== (canvas.height / 2 - 1)) {
+      y = (canvas.height / 2 - 1);
+      color = RenderPixel(x, y);
+      if (Scene.lastHit !== Scene.currentHit) {
+        for (let k = prevY + 1; k < y; k++) {
+          PutPixel(x, k, RenderPixel(x, k));
+        }
+      } else {
+        for (let k = prevY + 1; k < y; k++) {
+          PutPixel(x, k, color);
+        }
+      }
+    }
+    Scene.resetBlockerArray();
   }
 }
-// function SubsampleRenderScene(ySubsampling) {
-//   if (!ySubsampling || ySubsampling == 1) {
-//     RenderScene();
-//   } else {
-//     let yOffset = canvas.height % ySubsampling;
-//     let minY = -canvas.height / 2 + yOffset;
-//     for (let x = -canvas.width / 2; x < canvas.width / 2; x++) {
-//        // If the subsampling does not evenly divide the canvas
-//        // Subsample the first part so that it evens it out
-//       if (yOffset !== 0) {
-//         let color = RenderPixel(x, 0);
-//         PutPixel(x, 0, color);
-//         color = RenderPixel(x, minY);
-//         PutPixel(x, minY, color);
-//         if(Scene.lastHit != Scene.currentHit) {
-//           for (let k = 1; k < minY; k++) {
-//             PutPixel(x, k, RenderPixel(x, k));
-//           }
-//         } else {
-//           for(let k = 1; k < minY; k++) {
-//             PutPixel(x, k, color);
-//           }
-//         }
-//       }
-//       for (let y = minY; y < canvas.height / 2; y += ySubsampling) {
-//         let color = RenderPixel(x, y);
-//         PutPixel(x, y, color);
-//         if (y > minY && Scene.lastHit !== Scene.currentHit) {
-//           for (let k = ySubsampling - 1; k > 0; k--) {
-//             PutPixel(x, y - k, RenderPixel(x, y - k));
-//           }
-//         } else {
-//           for (let k = ySubsampling - 1; k > 0; k--) {
-//             PutPixel(x, y - k, color);
-//           }
-//         }
-//       }
-//       Scene.resetBlockerArray();
-//     }
-//   }
-// }
 
 function UpdateRender() {
   const start = performance.now();
-  SubsampleRenderScene(Scene.subsampling);
+  if (Scene.subsampling === 0) {
+    RenderScene();
+  } else {
+    SubsampleRenderScene(Scene.subsampling);
+  }
   UpdateCanvas();
   console.log(`Rendered in ${performance.now() - start}ms`);
 }
@@ -606,34 +565,21 @@ const Scene = (() => {
   let outlineBoundingSpheres = false;
   let highlightColor = [255, 255, 255];
 
-  // Sample Scene
-  // let spheres = [
-  //     new Sphere([0, -1, 3], 1, [255, 255, 255], 100, 0.5),
-  //     new Sphere([2, 1, 5], 1, [255, 0, 0], 1000, 0.2),
-  //     new Sphere([0, -502, 0], 501, [30, 80, 10], 1, 0.1),
-  //     new Sphere([-300, 20, 1000], 50, [248, 248, 248], 10000, 0.8),
-  // ];
-
-  // Debugging for specific goals
-  // let spheres = [
-  //   new Sphere([-2, 0, 5], 1, [255, 0, 0], -1, 1),
-  //   new Sphere([0, 0, 5], 1, [0, 0, 255], -1, 1),
-  //   new Sphere([2, 0, 5], 1, [0, 255, 0], -1, 1),
-  //   new Sphere([0, 6, 10], 1, [255, 255, 0], -1, 1),
-  // ];
-
-  // Testing transparency
   let spheres = [
-    new Sphere([0, 0, 5], 1, [255, 255, 255], -1, 0, 0.2),
-    new Sphere([0, 0, 10], 2, [0, 255, 0], -1, 1, 1),
+    new Sphere([0, 0, 10], 1, [255, 255, 255], -1, 0, 1),
+    new Sphere([-5, 0, 8], 1, [0, 0, 255], -1, 0, 0.5),
+    new Sphere([-6, 0, 18], 2, [255, 0, 0], -1, 0, 1),
+    new Sphere([5, 0, 8], 1, [0, 0, 0], -1, 0, 1),
+    new Sphere([6, 0, 18], 2, [255, 255, 255], -1, 0, 0.5),
+    
   ]
 
   let checkSpheres = [];
 
   let lights = [
     new Light(Light.ambient, 0.2),
-    new Light(Light.directional, 0.3, [0, 1, -1]),
-    new Light(Light.point, 0.5, [-500, -70, -100]),
+    new Light(Light.directional, 1.0, [0, 0, -1]),
+    //new Light(Light.point, 0.5, [-500, -70, -100]),
   ];
 
   let lastHit = null;
@@ -647,38 +593,7 @@ const Scene = (() => {
   function generateBoundingSpheres() {
     console.log(this.maxBoundingSphereDiameter);
     spheres.forEach((sphere) => (sphere.isBound = false));
-    // * Scene now has an array checkSpheres which contains bounding spheres and spheres
-    //   the nested spheres and top-level spheres comprise the Scene.spheres array
 
-    // * Spheres now have an attribute isBound that I use
-    //   to determine which spheres need to be added to
-    //   checkSpheres individually.
-
-    // * I'm not 100% satisfied on the way I use these in the actual
-    //   ray tracing part of the program.
-    //   * Sphere and BoundingSphere 'classes' have boolean attributes called
-    //     bounding. BoundingSpheres have this set to true.
-    //     This is because IntersectRaySphere does not know the difference
-    //     between the types of spheres.
-    //     So in ClosestSphere, you have to check if a sphere is a bounding
-    //     sphere and if it is you must then loop through the bounded spheres.
-    //     This is currently implemented in a **really** ugly fashion.
-    //     I'd like to do more thinking about this and come up with a better
-    //     API.
-
-    // * The outer most list creates a sphereGroup Array each pass
-    //   but sometimes it ends without any addition spheres added
-    //   in this case I do not bother to make a boundingSphere because it is an
-    //   isolated sphere.
-
-    // * Sometimes I make redundant BoundingSpheres that are sub-spheres of
-    //   existing bounding spheres.
-    //   To prevent this from effecting the rendering I check each bounding sphere
-    //   if it is completely encapsulated by an existing bounding sphere.
-    //   This works. But I wonder if there's an easier way to prevent this from happening
-    //   entirely.
-
-    // * This is still majorly a work in progress!
 
     // I'm just gonna try getting something out there before work
     let newBoundingSpheres = []; // Temp array for new spheres so I don't alter Scene.spheres while looping
@@ -744,12 +659,16 @@ const Scene = (() => {
     // Trying to make it so I can determine the background color
     // based on the vector.
     // Maybe I can try making a gradient or something?
-    let color = [
-      (Math.cos(direction[1]) + 0.5) * 125,
-      (Math.sin(direction[0]) + 0.5) * 125,
-      (Math.cos(direction[1]) + 0.33) * 125,
-    ];
-    return color;
+    // let color = [
+    //   (Math.cos(direction[1]) + 0.5) * 125,
+    //   (Math.sin(direction[0]) + 0.5) * 125,
+    //   (Math.cos(direction[1]) + 0.33) * 125,
+    // ];
+    // This is really neat. I'd like to pick this apart and make sense of it.
+    let condA = (((Math.abs(direction[1]) * 100) % direction[0] * 100) >= (direction[2] * 10));
+    let condB = (((Math.abs(direction[0] * 100)) % direction[1] * 100) <= (direction[2] * 10));
+    let brightness = (condA != condB) ? 0 : 255;
+    return [brightness, brightness, brightness];
   }
 
   return {
@@ -855,12 +774,9 @@ const ui = (() => {
 
   function GetOptimizationSettings() {
     const subsampling = parseInt(subsampleInput.value);
+    Scene.subsampling = subsampling;
+
     const maxBoundingSphereDiameter = parseInt(maxBoundingDiameterInput.value);
-
-    if (subsampling) {
-      Scene.subsampling = subsampling;
-    }
-
     if (maxBoundingSphereDiameter) {
       Scene.maxBoundingSphereDiameter = maxBoundingSphereDiameter;
       Scene.generateBoundingSpheres();
@@ -965,7 +881,11 @@ function handleKeyDown(event) {
     --Scene.reflectionLimit;
     update = true;
   }
-  if (update) UpdateRender();
+  if (update) {
+    UpdateRender();
+    ui.SyncWithScene();
+  } 
+    
 }
 
 function zoom(event) {
@@ -975,6 +895,7 @@ function zoom(event) {
     --Scene.cameraPosition[2];
   }
   UpdateRender();
+  ui.SyncWithScene();
 }
 
 document.addEventListener("keydown", handleKeyDown);
