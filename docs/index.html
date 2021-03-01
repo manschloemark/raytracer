@@ -28,16 +28,36 @@
             </div>
         </div>
         <div id="control-container">
+            <div class="controls" id="debug">
+                <h2>Debug</h2>
+                <input type="checkbox" id="debug-subsamples" name="debug-subsamples">
+                <label for="debug-subsamples">Debug Subsamples</label>
+
+            </div>
             <div class="controls" id="optimization">
                 <h2>Optimization</h2>
                 <label for="subsamples">Subsampling:</label>
-                <input type="number" id="subsamples" name="subsamples" min="1">
+                <input type="number" id="subsamples" name="subsamples" min="0">
                 <label for="bounding-sphere-diameter">Max Bounding Sphere Diameter:</label>
                 <input type="number" id="bounding-sphere-diameter" name="bounding-sphere-diameter" min="0">
                 <div>
                     <input type="checkbox" name="bounding-sphere-highlight" id="bounding-sphere-highlight">
                     <label for="bounding-sphere-highlight">Outline Bounding Spheres</label>
                 </div>
+            </div>
+            <div id="background" class="controls">
+                <label for="background-function">Background</label>
+                <select id="background-function" name="background-function">
+                    <option value="solid">
+                        Solid Color
+                    </option>
+                    <option value="gradient">
+                        Gradient
+                    </option>
+                    <option value="weird">
+                        Weird Pattern
+                    </option>
+                </select>
             </div>
             <div id="camera" class="controls">
                 <h2>Camera</h2>
