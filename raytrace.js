@@ -388,56 +388,52 @@ function TraceRay(origin, direction, minT, maxT, recursionDepth) {
   );
   let t = intersection[0];
   let object = intersection[1];
-
+  let localColor;
   if (object === null) {
-    return Scene.getBackgroundColor(origin, direction);
-  }
-
-  if (object.bounding) {
+    localColor =  Scene.getBackgroundColor(origin, direction);
+  } else if (object.bounding) {
     // This should only over happen if Scene.outlineBoundingSphere is true
-    return Scene.highlightColor;
-  }
-
-  let point = Add(origin, ScalarMultiply(direction, t));
-  let normal = Subtract(point, object.center);
-  normal = ScalarDivide(normal, Length(normal));
-  let negativeDirection = ScalarMultiply(direction, -1);
-  let lighting = ComputeLighting(
-    point,
-    normal,
-    negativeDirection,
-    object.specular
-  );
-  let localColor = BrightenColor(object.color, lighting);
-
-  if(object.opacity < 1 && recursionDepth > 0) {
-    let transparentColor = TraceRay(point, direction, EPSILON, maxT, recursionDepth - 1);
-
-    localColor = Add(
-      BrightenColor(localColor, object.opacity),
-      BrightenColor(transparentColor, 1 - object.opacity)
-    );
-  }
-
-
-  if (object.reflective > 0 && recursionDepth > 0) {
-    let reflection = ReflectRay(negativeDirection, normal);
-    let reflectionColor = TraceRay(
+    localColor = Scene.highlightColor;
+  } else {
+    let point = Add(origin, ScalarMultiply(direction, t));
+    let normal = Subtract(point, object.center);
+    normal = ScalarDivide(normal, Length(normal));
+    let negativeDirection = ScalarMultiply(direction, -1);
+    let lighting = ComputeLighting(
       point,
-      reflection,
-      EPSILON,
-      Infinity,
-      recursionDepth - 1
+      normal,
+      negativeDirection,
+      object.specular
     );
-    localColor = Add(
-      BrightenColor(localColor, 1 - object.reflective),
-      BrightenColor(reflectionColor, object.reflective)
-    );
-  }
+    localColor = BrightenColor(object.color, lighting);
 
+    if(object.opacity < 1 && recursionDepth > 0) {
+      let transparentColor = TraceRay(point, direction, EPSILON, maxT, recursionDepth - 1);
+
+      localColor = Add(
+        BrightenColor(localColor, object.opacity),
+        BrightenColor(transparentColor, 1 - object.opacity)
+      );
+    }
+
+
+    if (object.reflective > 0 && recursionDepth > 0) {
+      let reflection = ReflectRay(negativeDirection, normal);
+      let reflectionColor = TraceRay(
+        point,
+        reflection,
+        EPSILON,
+        Infinity,
+        recursionDepth - 1
+      );
+      localColor = Add(
+        BrightenColor(localColor, 1 - object.reflective),
+        BrightenColor(reflectionColor, object.reflective)
+      );
+    }
+  }
   Scene.lastHit = Scene.currentHit;
   Scene.currentHit = object;
-  
   return localColor;
 }
 
@@ -510,7 +506,7 @@ function SubsampleRenderScene(ySubsampling) {
     while (y < canvas.height / 2) {
       let color = RenderPixel(x, y);
       PutPixel(x, y, color);
-      if (prevY !== null && Scene.lastHit !== Scene.currentHit) {
+      if (prevY !== null && ((Scene.lastHit !== Scene.currentHit) || (Scene.lastHit === null) || (Scene.currentHit === null))) {
         for (let k = prevY + 1; k < y; k++) {
           PutPixel(x, k, RenderPixel(x, k));
         }
@@ -525,7 +521,7 @@ function SubsampleRenderScene(ySubsampling) {
     if (prevY !== (canvas.height / 2 - 1)) {
       y = (canvas.height / 2 - 1);
       color = RenderPixel(x, y);
-      if (Scene.lastHit !== Scene.currentHit) {
+      if (Scene.lastHit !== Scene.currentHit || Scene.lastHit === null || Scene.currentHit === null) {
         for (let k = prevY + 1; k < y; k++) {
           PutPixel(x, k, RenderPixel(x, k));
         }
@@ -571,15 +567,16 @@ const Scene = (() => {
     new Sphere([-6, 0, 18], 2, [255, 0, 0], -1, 0, 1),
     new Sphere([5, 0, 8], 1, [0, 0, 0], -1, 0, 1),
     new Sphere([6, 0, 18], 2, [255, 255, 255], -1, 0, 0.5),
-    
+    new Sphere([0, -5050, 0], 5000, [255, 255, 255], 10000, 1, 1),
   ]
 
   let checkSpheres = [];
 
   let lights = [
-    new Light(Light.ambient, 0.2),
-    new Light(Light.directional, 1.0, [0, 0, -1]),
-    //new Light(Light.point, 0.5, [-500, -70, -100]),
+    new Light(Light.ambient, 0.1),
+    new Light(Light.directional, 0.3, [0, 0, -1]),
+    new Light(Light.point, 0.3, [0, 50, -100]),
+    new Light(Light.point, 0.3, [0, 50, 100]),
   ];
 
   let lastHit = null;
@@ -655,15 +652,6 @@ const Scene = (() => {
   }
 
   function getBackgroundColor(origin, direction) {
-    // This is for fun
-    // Trying to make it so I can determine the background color
-    // based on the vector.
-    // Maybe I can try making a gradient or something?
-    // let color = [
-    //   (Math.cos(direction[1]) + 0.5) * 125,
-    //   (Math.sin(direction[0]) + 0.5) * 125,
-    //   (Math.cos(direction[1]) + 0.33) * 125,
-    // ];
     // This is really neat. I'd like to pick this apart and make sense of it.
     let condA = (((Math.abs(direction[1]) * 100) % direction[0] * 100) >= (direction[2] * 10));
     let condB = (((Math.abs(direction[0] * 100)) % direction[1] * 100) <= (direction[2] * 10));
