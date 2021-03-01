@@ -506,7 +506,7 @@ function SubsampleRenderScene(ySubsampling) {
     while (y < canvas.height / 2) {
       let color = RenderPixel(x, y);
       PutPixel(x, y, color);
-      if (prevY !== null && ((Scene.lastHit !== Scene.currentHit) || (Scene.lastHit === null) || (Scene.currentHit === null))) {
+      if (prevY !== null && ((Scene.lastHit !== Scene.currentHit) || (Scene.lastHit === null && Scene.currentHit === null))) {
         for (let k = prevY + 1; k < y; k++) {
           PutPixel(x, k, RenderPixel(x, k));
         }
@@ -521,7 +521,7 @@ function SubsampleRenderScene(ySubsampling) {
     if (prevY !== (canvas.height / 2 - 1)) {
       y = (canvas.height / 2 - 1);
       color = RenderPixel(x, y);
-      if (Scene.lastHit !== Scene.currentHit || Scene.lastHit === null || Scene.currentHit === null) {
+      if (Scene.lastHit !== Scene.currentHit || (Scene.lastHit === null && Scene.currentHit === null)) {
         for (let k = prevY + 1; k < y; k++) {
           PutPixel(x, k, RenderPixel(x, k));
         }
