@@ -435,7 +435,7 @@ function TraceRay(origin, direction, minT, maxT, recursionDepth) {
       );
     }
   }
-  Scene.lastHit = Scene.currentHit;
+  //Scene.lastHit = Scene.currentHit;
   Scene.currentHit = object;
   return localColor;
 }
@@ -524,6 +524,7 @@ function SubsampleRenderScene(ySubsampling) {
       }
       prevY = y;
       y += (1 + ySubsampling);
+      Scene.lastHit = Scene.currentHit;
     }
     if (prevY !== (canvas.height / 2 - 1)) {
       y = (canvas.height / 2 - 1);
