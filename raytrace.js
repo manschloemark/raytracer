@@ -388,15 +388,6 @@ function TraceRay(origin, direction, minT, maxT, recursionDepth) {
   );
   let t = intersection[0];
   let object = intersection[1];
-  if(recursionDepth === Scene.reflectionLimit) {
-    Scene.lastHit = Scene.currentHit;
-    Scene.currentHit = object;
-  } else if (object !== null) {
-    // Only overwrite the last hit on a recursive call when
-    // you actually hit an object
-    Scene.lastHit = Scene.currentHit;
-    Scene.currentHit = object;
-  }
 
   if (object === null) {
     return Scene.getBackgroundColor(origin, direction);
@@ -444,6 +435,9 @@ function TraceRay(origin, direction, minT, maxT, recursionDepth) {
     );
   }
 
+  Scene.lastHit = Scene.currentHit;
+  Scene.currentHit = object;
+  
   return localColor;
 }
 
