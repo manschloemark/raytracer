@@ -553,6 +553,23 @@ function UpdateRender() {
   console.log(`Rendered in ${performance.now() - start}ms`);
 }
 
+//  BACKGROUND COLOR FUNCTIONS
+const BackgroundSolidColor = (origin, direction) => {
+  return [0, 0, 0];
+}
+
+const BackgroundGradient = (origin, direction) => {
+  return [(Math.cos(direction[0]) + 1) * 127, (Math.cos(direction[1]) + 1) * 127, (Math.tan(direction[2]) + 1) * 127];
+}
+
+const BackgroundWeirdPattern = (origin, direction) => {
+  // This is really neat. I'd like to pick this apart and make sense of it.
+  let condA = (((Math.abs(direction[1]) * 100) % direction[0] * 100) >= (direction[2] * 10));
+  let condB = (((Math.abs(direction[0] * 100)) % direction[1] * 100) <= (direction[2] * 10));
+  let brightness = (condA != condB) ? 0 : 255;
+  return [brightness, brightness, brightness];
+}
+
 // Scene
 const Scene = (() => {
   let cameraPosition = [0, 0, -50];
@@ -658,13 +675,8 @@ const Scene = (() => {
     );
   }
 
-  function getBackgroundColor(origin, direction) {
-    // This is really neat. I'd like to pick this apart and make sense of it.
-    let condA = (((Math.abs(direction[1]) * 100) % direction[0] * 100) >= (direction[2] * 10));
-    let condB = (((Math.abs(direction[0] * 100)) % direction[1] * 100) <= (direction[2] * 10));
-    let brightness = (condA != condB) ? 0 : 255;
-    return [brightness, brightness, brightness];
-  }
+  let backgroundSelection = "weird";
+  let getBackgroundColor = BackgroundWeirdPattern;
 
   return {
     cameraPosition,
@@ -677,6 +689,7 @@ const Scene = (() => {
     generateBoundingSpheres,
     lights,
     backgroundColor,
+    backgroundSelection,
     getBackgroundColor,
     reflectionLimit,
     lastShadow,
@@ -704,6 +717,8 @@ const ui = (() => {
   const highlightBoundingSphereCheckbox = document.getElementById(
     "bounding-sphere-highlight"
   );
+  // Background
+  const backgroundSelect = document.getElementById("background-function");
   // Camera
   const xInput = document.getElementById("x-position");
   const yInput = document.getElementById("y-position");
@@ -758,6 +773,20 @@ const ui = (() => {
     UpdateRender();
   }
 
+  function GetBackgroundFunction() {
+    const selection = backgroundSelect.value;
+    Scene.backgroundSelection = selection;
+    if (selection === "solid") {
+      Scene.getBackgroundColor = BackgroundSolidColor;
+    }
+    if (selection === "gradient") {
+      Scene.getBackgroundColor = BackgroundGradient;
+    }
+    if (selection === "weird") {
+      Scene.getBackgroundColor = BackgroundWeirdPattern;
+    }
+  }
+
   function GetCameraPosition() {
     const x = parseInt(xInput.value);
     const y = parseInt(yInput.value);
@@ -810,6 +839,8 @@ const ui = (() => {
     canvasWidth.value = canvas.width;
     canvasHeight.value = canvas.height;
 
+    backgroundSelect.value = Scene.backgroundSelection;
+
     subsampleInput.value = Scene.subsampling;
     maxBoundingDiameterInput.value = Scene.maxBoundingSphereDiameter;
     highlightBoundingSphereCheckbox.checked = Scene.outlineBoundingSpheres;
@@ -826,6 +857,7 @@ const ui = (() => {
   }
   
   function UpdateSceneAndRender(event) {
+    GetBackgroundFunction();
     GetCameraPosition();
     GetCameraRotation();
     GetOptimizationSettings();
