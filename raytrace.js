@@ -20,6 +20,9 @@
             - Some sort of tree?
  */
 
+// DEBUG GLOBALS
+const DEBUG_SUBSAMPLES = document.getElementById("debug-subsamples");
+
 // Globals that don't feel right inside of the Scene object
 const EPSILON = 0.001;
 const SPHERE_EDGE_THRESHOLD = 2.5;
@@ -510,6 +513,10 @@ function SubsampleRenderScene(ySubsampling) {
         for (let k = prevY + 1; k < y; k++) {
           PutPixel(x, k, RenderPixel(x, k));
         }
+        if (DEBUG_SUBSAMPLES.checked) {
+          PutPixel(x, y, [200, 0, 0]);
+          PutPixel(x, prevY + 1, [0, 200, 0]);
+        }
       } else {
         for (let k = prevY + 1; k < y; k++) {
           PutPixel(x, k, color);
@@ -573,10 +580,10 @@ const Scene = (() => {
   let checkSpheres = [];
 
   let lights = [
-    new Light(Light.ambient, 0.1),
-    new Light(Light.directional, 0.3, [0, 0, -1]),
-    new Light(Light.point, 0.3, [0, 50, -100]),
-    new Light(Light.point, 0.3, [0, 50, 100]),
+    new Light(Light.ambient, 0.5),
+    new Light(Light.directional, 0.1, [0, 0, -1]),
+    new Light(Light.point, 0.1, [0, 50, -100]),
+    new Light(Light.point, 0.2, [0, 50, 100]),
   ];
 
   let lastHit = null;
@@ -730,13 +737,20 @@ const ui = (() => {
       Math.random() * 255,
       Math.random() * 255,
     ];
+
+    let randomOpacity;
+    if (Math.random() < 0.8) {
+      randomOpacity = 1;
+    } else {
+      randomOpacity = Math.random();
+    }
     let randomSphere = new Sphere(
       position,
       Math.random() * 5 + 1,
       randomColor,
       Math.random() * 1000,
       Math.random(),
-      Math.random()
+      randomOpacity
     );
     Scene.spheres.push(randomSphere);
     Scene.generateBoundingSpheres();

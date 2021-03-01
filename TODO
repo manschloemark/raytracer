@@ -2,6 +2,9 @@ Homebrew RayTracer
 
 Bugs:
   ☐ Subsampling does not render the first part of the canvas properly.
+  ☐ Something mega fucked with the Subsampling now.
+    ☐ I suspect it's related to me fixing a bug from TraceRay - previously, the function returned without setting lastHit and currentHit when it hit nothing or a bounding sphere.
+    ☐ Translucent spheres are the most messed up
 
 Graphics Code:
   ☐ Clean up BoundingSphere code
